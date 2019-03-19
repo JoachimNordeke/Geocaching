@@ -31,6 +31,8 @@ namespace Geocaching
 
         private AppDbContext db = new AppDbContext();
 
+        private List<Pushpin> PersonPins = new List<Pushpin>();
+
         private MapLayer layer;
 
         // Contains the location of the latest click on the map.
@@ -56,7 +58,6 @@ namespace Geocaching
             }
 
             CreateMap();
-
 
             // Load data from database and populate map here.
         }
@@ -89,10 +90,34 @@ namespace Geocaching
             var addGeocacheMenuItem = new MenuItem { Header = "Add Geocache" };
             map.ContextMenu.Items.Add(addGeocacheMenuItem);
             addGeocacheMenuItem.Click += OnAddGeocacheClick;
+
+            foreach (var cache in db.Geocache.Include(g => g.Person))
+            {
+                string tooltip = $"Latitude:\t\t{cache.Latitude}\r\nLongitude:\t{cache.Longitude}\r\n" +
+                    $"Made by:\t{cache.Person.FirstName + " " + cache.Person.LastName}\r\n" +
+                    $"Contents:\t{cache.Contents}\r\nMessage:\t{cache.Message}";
+
+                AddPin(new Location(cache.Latitude, cache.Longitude), tooltip, Colors.Gray);
+            }
+
+            foreach (var p in db.Person)
+            {
+                string tooltip = $"Latitude:\t\t{p.Latitude}\r\nLongitude:\t{p.Longitude}\r\n" +
+                    $"Name:\t\t{p.FirstName + " " + p.LastName}\r\nStreet address:\t{p.StreetName + " " + p.StreetNumber}";
+
+                var pin = AddPin(new Location(p.Latitude, p.Longitude), tooltip, Colors.Blue);
+                pin.Tag = p.ID;
+                pin.MouseDown += OnPersonPinClick;
+                PersonPins.Add(pin);
+            }
         }
 
         private void UpdateMap()
         {
+            foreach (var pin in PersonPins)
+            {
+                pin.Opacity = 1;
+            }
             // It is recommended (but optional) to use this method for setting the color and opacity of each pin after every user interaction that might change something.
             // This method should then be called once after every significant action, such as clicking on a pin, clicking on the map, or clicking a context menu option.
         }
@@ -155,6 +180,18 @@ namespace Geocaching
                 // Prevent click from being triggered on map.
                 a.Handled = true;
             };
+        }
+
+        private void OnPersonPinClick(object sender, MouseButtonEventArgs e)
+        {
+            var pushpin = sender as Pushpin;
+            pushpin.Opacity = 1;
+
+            foreach (var pin in PersonPins.Where(p => p.Tag != pushpin.Tag))
+            {
+                pin.Opacity = 0.5;
+            }
+            e.Handled = true;
         }
 
         private Pushpin AddPin(Location location, string tooltip, Color color)
