@@ -1,8 +1,10 @@
 ﻿using Geocaching.Data;
+using Geocaching.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Maps.MapControl.WPF;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -27,6 +29,8 @@ namespace Geocaching
         // Instructions here: https://docs.microsoft.com/en-us/bingmaps/getting-started/bing-maps-dev-center-help/getting-a-bing-maps-key
         private const string applicationId = "ApHORC4egk6ExJWI2PwXMPFrLXa89u0Z5kUo05q-foI9r90BgdG8dqrtDyG8Nl31";
 
+        private AppDbContext db = new AppDbContext();
+
         private MapLayer layer;
 
         // Contains the location of the latest click on the map.
@@ -44,7 +48,7 @@ namespace Geocaching
         private void Start()
         {
             System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
-            
+
             if (applicationId == null)
             {
                 MessageBox.Show("Please set the applicationId variable before running this program.");
@@ -53,10 +57,8 @@ namespace Geocaching
 
             CreateMap();
 
-            using (var db = new AppDbContext())
-            {
-                // Load data from database and populate map here.
-            }
+
+            // Load data from database and populate map here.
         }
 
         private void CreateMap()
@@ -179,6 +181,55 @@ namespace Geocaching
 
             string path = dialog.FileName;
             // Read the selected file here.
+
+            //Felhantering saknas i följande scope.
+            var lines = File.ReadLines(path).ToArray();
+
+            db.Person.RemoveRange(db.Person);
+            db.Geocache.RemoveRange(db.Geocache);
+            db.SaveChanges();
+
+            Person person = null;
+            Geocache geocache = null;
+
+            foreach (var line in lines)
+            {
+                if (line != "")
+                {
+                    var temp = line.Split('|');
+                    for (int i = 0; i < temp.Count(); i++) { temp[i] = temp[i].Trim(); }
+
+                    if (char.IsLetter(line[0]))
+                    {
+                        person = new Person()
+                        {
+                            FirstName = temp[0],
+                            LastName = temp[1],
+                            Country = temp[2],
+                            City = temp[3],
+                            StreetName = temp[4],
+                            StreetNumber = byte.Parse(temp[5]),
+                            Latitude = double.Parse(temp[6]),
+                            Longitude = double.Parse(temp[7])
+                        };
+                        db.Add(person);
+                        db.SaveChanges();
+                    }
+                    else
+                    {
+                        geocache = new Geocache
+                        {
+                            Person = person,
+                            Latitude = double.Parse(temp[0]),
+                            Longitude = double.Parse(temp[1]),
+                            Contents = temp[2],
+                            Message = temp[3]
+                        };
+                        db.Add(geocache);
+                        db.SaveChanges();
+                    }
+                }
+            }
         }
 
         private void OnSaveToFileClick(object sender, RoutedEventArgs args)
@@ -195,6 +246,36 @@ namespace Geocaching
 
             string path = dialog.FileName;
             // Write to the selected file here.
+
+            //Felhantering saknas på följande scope
+
+            var lines = new List<string>();
+            foreach (var p in db.Person.Include(p => p.Geocaches))
+            {
+                lines.Add(string.Join(" | ", new[] {
+                            p.FirstName,
+                            p.LastName,
+                            p.Country,
+                            p.City,
+                            p.StreetName,
+                            Convert.ToString(p.StreetNumber),
+                            Convert.ToString(p.Latitude),
+                            Convert.ToString(p.Longitude)
+                    }));
+
+                foreach (var g in db.Geocache.Where(g => g.Person == p))
+                {
+                    lines.Add(string.Join(" | ", new[] {
+                            Convert.ToString(g.Latitude),
+                            Convert.ToString(g.Longitude),
+                            g.Contents,
+                            g.Message
+                        }));
+                }
+
+                lines.Add("");
+            }
+            File.WriteAllLines(path, lines);
         }
     }
 }
