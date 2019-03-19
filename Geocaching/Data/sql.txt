@@ -1,1 +1,0 @@
-﻿Data Source=JOCKES;Initial Catalog=Geocaching;Integrated Security=True

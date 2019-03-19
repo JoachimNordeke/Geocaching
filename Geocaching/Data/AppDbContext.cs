@@ -33,8 +33,7 @@ namespace Geocaching.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            var con = File.ReadAllLines(@"Data\sql.txt");
-            options.UseSqlServer(con[0]);
+            options.UseSqlServer(@"Data Source=(local);Initial Catalog=Geocaching;Integrated Security=True");
         }
     }
 }
