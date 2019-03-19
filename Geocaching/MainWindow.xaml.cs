@@ -196,10 +196,9 @@ namespace Geocaching
             {
                 if (line != "")
                 {
-                    var temp = line.Split('|');
-                    for (int i = 0; i < temp.Count(); i++) { temp[i] = temp[i].Trim(); }
+                    string[] temp = line.Split('|').Select(l => l.Trim()).ToArray();
 
-                    if (char.IsLetter(line[0]))
+                    if (char.IsLetter(temp[0][0]))
                     {
                         person = new Person()
                         {
