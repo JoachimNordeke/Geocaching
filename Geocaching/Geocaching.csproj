@@ -206,11 +206,6 @@
   <ItemGroup>
     <Resource Include="Geocaches.txt" />
   </ItemGroup>
-  <ItemGroup>
-    <Resource Include="Data\sql.txt">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Resource>
-  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

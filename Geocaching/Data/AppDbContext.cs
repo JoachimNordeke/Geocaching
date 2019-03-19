@@ -33,7 +33,10 @@ namespace Geocaching.Data
 
         protected override void OnConfiguring(DbContextOptionsBuilder options)
         {
-            options.UseSqlServer(@"Data Source=(local);Initial Catalog=Geocaching;Integrated Security=True");
+            // Jockes SQL-string
+            options.UseSqlServer(@"Data Source=JOCKES;Initial Catalog=Geocaching;Integrated Security=True");
+            //Ghassans SQL-string
+            //options.UseSqlServer(@"Data Source=(local)\SQLEXPRESS;Initial Catalog=Geocaching;Integrated Security=True");
         }
     }
 }
