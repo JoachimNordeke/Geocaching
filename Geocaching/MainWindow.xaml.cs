@@ -59,7 +59,7 @@ namespace Geocaching
             InitializeComponent();
             Start();
         }
-
+        
         private void Start()
         {
             System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
@@ -84,10 +84,9 @@ namespace Geocaching
             map.Children.Add(layer);
 
             Point? mapStartPosition = null;
-            Point? mapEndPosition = null;
 
             // This will start tracking the pointer's position by giving mapStartPosition a value
-            MouseDown += (sender, e) =>
+            MouseLeftButtonDown += (sender, e) =>
             {
                 mapStartPosition = e.GetPosition(this);
             };
@@ -96,13 +95,12 @@ namespace Geocaching
             // What this gives, is that if you select a Persons pin and then move the map, 
             // OnMapLeftClick will never be called. Therefore, you can select a person pin 
             // and move around the map. But if you just click the map, it will call OnMapLeftClick.
-            MouseUp += (sender, e) =>
+            MouseLeftButtonUp += (sender, e) =>
             {
-                mapEndPosition = e.GetPosition(this);
+                var point = e.GetPosition(this);
 
-                if (mapStartPosition != null && mapStartPosition.Value == mapEndPosition.Value)
+                if (mapStartPosition != null && mapStartPosition == point)
                 {
-                    var point = e.GetPosition(this);
                     latestClickLocation = map.ViewportPointToLocation(point);
 
                     if (e.LeftButton == MouseButtonState.Released)
