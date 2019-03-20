@@ -80,14 +80,31 @@ namespace Geocaching
             layer = new MapLayer();
             map.Children.Add(layer);
 
+            Point? mapStartPosition = null;
+            Point? mapEndPosition = null;
+
+            // This will start tracking the pointer's position by giving mapStartPosition a value
             MouseDown += (sender, e) =>
             {
-                var point = e.GetPosition(this);
-                latestClickLocation = map.ViewportPointToLocation(point);
+                mapStartPosition = e.GetPosition(this);
+            };
 
-                if (e.LeftButton == MouseButtonState.Pressed)
+            // This will occur when the mouse is released and if the pointer hasn't moved.
+            // What this gives, is that if you select a Persons pin and then move the map, 
+            // OnMapLeftClick will never be called. But if you just click the map, it will.
+            MouseUp += (sender, e) =>
+            {
+                mapEndPosition = e.GetPosition(this);
+
+                if (mapStartPosition != null && mapStartPosition.Value == mapEndPosition.Value)
                 {
-                    OnMapLeftClick();
+                    var point = e.GetPosition(this);
+                    latestClickLocation = map.ViewportPointToLocation(point);
+
+                    if (e.LeftButton == MouseButtonState.Released)
+                    {
+                        OnMapLeftClick();
+                    }
                 }
             };
 
@@ -105,6 +122,8 @@ namespace Geocaching
         private void UpdateMap()
         {
             layer.Children.Clear();
+            cachePins.Clear();
+            personPins.Clear();
 
             foreach (var cache in db.Geocache.Include(g => g.Person))
             {
