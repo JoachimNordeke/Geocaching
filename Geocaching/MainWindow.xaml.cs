@@ -29,6 +29,7 @@ namespace Geocaching
         // Instructions here: https://docs.microsoft.com/en-us/bingmaps/getting-started/bing-maps-dev-center-help/getting-a-bing-maps-key
         private const string applicationId = "ApHORC4egk6ExJWI2PwXMPFrLXa89u0Z5kUo05q-foI9r90BgdG8dqrtDyG8Nl31";
 
+        //This makes it easier to pick a color.
         private Dictionary<string, SolidColorBrush> colors = new Dictionary<string, SolidColorBrush> {
             ["Blue"] = new SolidColorBrush(Colors.Blue),
             ["Gray"] = new SolidColorBrush(Colors.Gray),
@@ -41,6 +42,8 @@ namespace Geocaching
 
         private List<Pushpin> personPins = new List<Pushpin>();
         private List<Pushpin> cachePins = new List<Pushpin>();
+
+        //To keep track of wich personPin is selected at the moment. Used in OnPersonPinClick and OnCachePinClick.
         private int ActivePinPersonID = 0;
 
         private MapLayer layer;
@@ -91,7 +94,8 @@ namespace Geocaching
 
             // This will occur when the mouse is released and if the pointer hasn't moved.
             // What this gives, is that if you select a Persons pin and then move the map, 
-            // OnMapLeftClick will never be called. But if you just click the map, it will.
+            // OnMapLeftClick will never be called. Therefore, you can select a person pin 
+            // and move around the map. But if you just click the map, it will call OnMapLeftClick.
             MouseUp += (sender, e) =>
             {
                 mapEndPosition = e.GetPosition(this);
@@ -121,10 +125,12 @@ namespace Geocaching
 
         private void UpdateMap()
         {
+            // Clears the pin collections.
             layer.Children.Clear();
             cachePins.Clear();
             personPins.Clear();
 
+            // The following two loops reloads data from the database and paints all the pins.
             foreach (var cache in db.Geocache.Include(g => g.Person))
             {
                 string tooltip = $"Latitude:\t\t{cache.Latitude}\r\nLongitude:\t{cache.Longitude}\r\n" +
@@ -136,7 +142,6 @@ namespace Geocaching
                 pin.MouseLeftButtonDown += OnCachePinClick;
                 cachePins.Add(pin);
             }
-
             foreach (var p in db.Person)
             {
                 string tooltip = $"Latitude:\t\t{p.Latitude}\r\nLongitude:\t{p.Longitude}\r\n" +
@@ -211,7 +216,7 @@ namespace Geocaching
             };
         }
 
-        private void OnPersonPinClick(object sender, MouseButtonEventArgs e)
+        private void OnPersonPinClick(object sender, MouseButtonEventArgs args)
         {
             var pushpin = sender as Pushpin;
             int personID = (int)pushpin.Tag;
@@ -234,31 +239,45 @@ namespace Geocaching
                 else
                     pin.Background = colors["Red"];
             }
-
-            e.Handled = true;
+            // To prevent the calling of OnMapLeftClick.
+            args.Handled = true;
         }
 
-        private void OnCachePinClick(object sender, MouseButtonEventArgs e)
+        private void OnCachePinClick(object sender, MouseButtonEventArgs args)
         {
             var pin = sender as Pushpin;
-            int pinCacheID = ((sender as Pushpin).Tag as Dictionary<string, int>)["CacheID"];
+            int pinCacheID = (pin.Tag as Dictionary<string, int>)["CacheID"];
 
             if (pin.Background == colors["Red"])
             {
-                db.Add(new FoundGeocache { PersonID = ActivePinPersonID, GeocacheID = pinCacheID });
-                db.SaveChanges();
-                pin.Background = colors["Green"];
+                try
+                {
+                    db.Add(new FoundGeocache { PersonID = ActivePinPersonID, GeocacheID = pinCacheID });
+                    db.SaveChanges();
+                    pin.Background = colors["Green"];
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show("Something went wrong when updating the database.\r\n\r\n" +
+                        e.Message, "Error");
+                }
             }
             else if (pin.Background == colors["Green"])
             {
-                db.Remove(db.FoundGeocache
-                    .Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == pinCacheID )
-                    .Single());
-                db.SaveChanges();
-                pin.Background = colors["Red"];
+                try
+                {
+                    db.Remove(db.FoundGeocache.Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == pinCacheID).Single());
+                    db.SaveChanges();
+                    pin.Background = colors["Red"];
+                }
+                catch (Exception e)
+                {
+                    MessageBox.Show("Something went wrong when updating the database.\r\n\r\n" +
+                        e.Message, "Error");
+                }
             }
-
-            e.Handled = true;
+            // To prevent the calling of OnMapLeftClick.
+            args.Handled = true;
         }
 
         private Pushpin AddPin(Location location, string tooltip, Color color)
