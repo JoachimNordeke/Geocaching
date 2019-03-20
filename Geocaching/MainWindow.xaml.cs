@@ -31,7 +31,8 @@ namespace Geocaching
 
         private AppDbContext db = new AppDbContext();
 
-        private List<Pushpin> PersonPins = new List<Pushpin>();
+        private List<Pushpin> personPins = new List<Pushpin>();
+        private List<Pushpin> cachePins = new List<Pushpin>();
 
         private MapLayer layer;
 
@@ -58,7 +59,7 @@ namespace Geocaching
             }
 
             CreateMap();
-
+            UpdateMap();
             // Load data from database and populate map here.
         }
 
@@ -90,6 +91,11 @@ namespace Geocaching
             var addGeocacheMenuItem = new MenuItem { Header = "Add Geocache" };
             map.ContextMenu.Items.Add(addGeocacheMenuItem);
             addGeocacheMenuItem.Click += OnAddGeocacheClick;
+        }
+
+        private void UpdateMap()
+        {
+            layer.Children.Clear();
 
             foreach (var cache in db.Geocache.Include(g => g.Person))
             {
@@ -97,7 +103,10 @@ namespace Geocaching
                     $"Made by:\t{cache.Person.FirstName + " " + cache.Person.LastName}\r\n" +
                     $"Contents:\t{cache.Contents}\r\nMessage:\t{cache.Message}";
 
-                AddPin(new Location(cache.Latitude, cache.Longitude), tooltip, Colors.Gray);
+                var pin = AddPin(new Location(cache.Latitude, cache.Longitude), tooltip, Colors.Gray);
+                pin.Tag = new Dictionary<string, int> { ["PersonID"] = cache.Person.ID, ["CacheID"] = cache.ID };
+                pin.MouseLeftButtonDown += OnCachePinClick;
+                cachePins.Add(pin);
             }
 
             foreach (var p in db.Person)
@@ -107,16 +116,8 @@ namespace Geocaching
 
                 var pin = AddPin(new Location(p.Latitude, p.Longitude), tooltip, Colors.Blue);
                 pin.Tag = p.ID;
-                pin.MouseDown += OnPersonPinClick;
-                PersonPins.Add(pin);
-            }
-        }
-
-        private void UpdateMap()
-        {
-            foreach (var pin in PersonPins)
-            {
-                pin.Opacity = 1;
+                pin.MouseLeftButtonDown += OnPersonPinClick;
+                personPins.Add(pin);
             }
             // It is recommended (but optional) to use this method for setting the color and opacity of each pin after every user interaction that might change something.
             // This method should then be called once after every significant action, such as clicking on a pin, clicking on the map, or clicking a context menu option.
@@ -187,11 +188,26 @@ namespace Geocaching
             var pushpin = sender as Pushpin;
             pushpin.Opacity = 1;
 
-            foreach (var pin in PersonPins.Where(p => p.Tag != pushpin.Tag))
+            personPins.Where(p => p.Tag != pushpin.Tag).ToList().ForEach(p => p.Opacity = 0.5);
+
+            var foundGeocaches = db.FoundGeocache.Where(f => f.PersonID == (int)pushpin.Tag).Include(f => f.GeocacheID).Select(f => f.GeocacheID).ToArray();
+
+            foreach (var pin in cachePins)
             {
-                pin.Opacity = 0.5;
+                if ((pin.Tag as Dictionary<string, int>)["PersonID"] == (int)pushpin.Tag)
+                    pin.Background = new SolidColorBrush(Colors.Black);
+                else if (foundGeocaches.Contains((pin.Tag as Dictionary<string, int>)["CacheID"]))
+                    pin.Background = new SolidColorBrush(Colors.Green);
+                else
+                    pin.Background = new SolidColorBrush(Colors.Red);
             }
+
             e.Handled = true;
+        }
+
+        private void OnCachePinClick(object sender, MouseButtonEventArgs e)
+        {
+
         }
 
         private Pushpin AddPin(Location location, string tooltip, Color color)
@@ -266,6 +282,7 @@ namespace Geocaching
                     }
                 }
             }
+            UpdateMap();
         }
 
         private void OnSaveToFileClick(object sender, RoutedEventArgs args)

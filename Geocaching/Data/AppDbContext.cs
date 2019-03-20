@@ -12,6 +12,7 @@ namespace Geocaching.Data
     class AppDbContext : DbContext
     {
         public DbSet<Person> Person { get; set; }
+        public DbSet<FoundGeocache> FoundGeocache { get; set; }
         public DbSet<Geocache> Geocache { get; set; }
         
         protected override void OnModelCreating(ModelBuilder model)
