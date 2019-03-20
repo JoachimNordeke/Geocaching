@@ -29,10 +29,19 @@ namespace Geocaching
         // Instructions here: https://docs.microsoft.com/en-us/bingmaps/getting-started/bing-maps-dev-center-help/getting-a-bing-maps-key
         private const string applicationId = "ApHORC4egk6ExJWI2PwXMPFrLXa89u0Z5kUo05q-foI9r90BgdG8dqrtDyG8Nl31";
 
+        private Dictionary<string, SolidColorBrush> colors = new Dictionary<string, SolidColorBrush> {
+            ["Blue"] = new SolidColorBrush(Colors.Blue),
+            ["Gray"] = new SolidColorBrush(Colors.Gray),
+            ["Red"] = new SolidColorBrush(Colors.Red),
+            ["Green"] = new SolidColorBrush(Colors.Green),
+            ["Black"] = new SolidColorBrush(Colors.Black)
+        };
+
         private AppDbContext db = new AppDbContext();
 
         private List<Pushpin> personPins = new List<Pushpin>();
         private List<Pushpin> cachePins = new List<Pushpin>();
+        private int ActivePinPersonID = 0;
 
         private MapLayer layer;
 
@@ -186,20 +195,25 @@ namespace Geocaching
         private void OnPersonPinClick(object sender, MouseButtonEventArgs e)
         {
             var pushpin = sender as Pushpin;
+            int personID = (int)pushpin.Tag;
+            ActivePinPersonID = personID;
             pushpin.Opacity = 1;
 
-            personPins.Where(p => p.Tag != pushpin.Tag).ToList().ForEach(p => p.Opacity = 0.5);
+            personPins.Where(p => (int)p.Tag != personID).ToList().ForEach(p => p.Opacity = 0.5);
 
-            var foundGeocaches = db.FoundGeocache.Where(f => f.PersonID == (int)pushpin.Tag).Include(f => f.GeocacheID).Select(f => f.GeocacheID).ToArray();
+            var foundGeocaches = db.FoundGeocache.Where(f => f.PersonID == personID).Include(f => f.GeocacheID).Select(f => f.GeocacheID).ToArray();
 
             foreach (var pin in cachePins)
             {
-                if ((pin.Tag as Dictionary<string, int>)["PersonID"] == (int)pushpin.Tag)
-                    pin.Background = new SolidColorBrush(Colors.Black);
-                else if (foundGeocaches.Contains((pin.Tag as Dictionary<string, int>)["CacheID"]))
-                    pin.Background = new SolidColorBrush(Colors.Green);
+                int pinPersonID = (pin.Tag as Dictionary<string, int>)["PersonID"];
+                int pinCacheID = (pin.Tag as Dictionary<string, int>)["CacheID"];
+
+                if (pinPersonID == personID)
+                    pin.Background = colors["Black"];
+                else if (foundGeocaches.Contains(pinCacheID))
+                    pin.Background = colors["Green"];
                 else
-                    pin.Background = new SolidColorBrush(Colors.Red);
+                    pin.Background = colors["Red"];
             }
 
             e.Handled = true;
@@ -207,7 +221,25 @@ namespace Geocaching
 
         private void OnCachePinClick(object sender, MouseButtonEventArgs e)
         {
+            var pin = sender as Pushpin;
+            int pinCacheID = ((sender as Pushpin).Tag as Dictionary<string, int>)["CacheID"];
 
+            if (pin.Background == colors["Red"])
+            {
+                db.Add(new FoundGeocache { PersonID = ActivePinPersonID, GeocacheID = pinCacheID });
+                db.SaveChanges();
+                pin.Background = colors["Green"];
+            }
+            else if (pin.Background == colors["Green"])
+            {
+                db.Remove(db.FoundGeocache
+                    .Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == pinCacheID )
+                    .Single());
+                db.SaveChanges();
+                pin.Background = colors["Red"];
+            }
+
+            e.Handled = true;
         }
 
         private Pushpin AddPin(Location location, string tooltip, Color color)
@@ -240,6 +272,7 @@ namespace Geocaching
 
             db.Person.RemoveRange(db.Person);
             db.Geocache.RemoveRange(db.Geocache);
+            db.FoundGeocache.RemoveRange(db.FoundGeocache);
             db.SaveChanges();
 
             Person person = null;
