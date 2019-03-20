@@ -185,8 +185,10 @@ namespace Geocaching
 
         private void OnAddPersonClick(object sender, RoutedEventArgs args)
         {
-            var dialog = new PersonDialog();
-            dialog.Owner = this;
+            var dialog = new PersonDialog
+            {
+                Owner = this
+            };
             dialog.ShowDialog();
             if (dialog.DialogResult == false)
             {
