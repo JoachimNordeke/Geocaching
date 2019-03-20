@@ -105,6 +105,12 @@ namespace Geocaching
                 }
             };
 
+            MouseRightButtonUp += (sender, e) =>
+            {
+                var point = e.GetPosition(this);
+                latestClickLocation = map.ViewportPointToLocation(point);
+            };
+
             map.ContextMenu = new ContextMenu();
 
             var addPersonMenuItem = new MenuItem { Header = "Add Person" };
