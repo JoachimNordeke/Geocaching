@@ -6,17 +6,10 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Data;
-using System.Windows.Documents;
 using System.Windows.Input;
 using System.Windows.Media;
-using System.Windows.Media.Imaging;
-using System.Windows.Navigation;
-using System.Windows.Shapes;
 
 namespace Geocaching
 {
@@ -29,7 +22,8 @@ namespace Geocaching
         // Instructions here: https://docs.microsoft.com/en-us/bingmaps/getting-started/bing-maps-dev-center-help/getting-a-bing-maps-key
         private const string applicationId = "ApHORC4egk6ExJWI2PwXMPFrLXa89u0Z5kUo05q-foI9r90BgdG8dqrtDyG8Nl31";
 
-        private Dictionary<string, SolidColorBrush> colors = new Dictionary<string, SolidColorBrush> {
+        private Dictionary<string, SolidColorBrush> colors = new Dictionary<string, SolidColorBrush>
+        {
             ["Blue"] = new SolidColorBrush(Colors.Blue),
             ["Gray"] = new SolidColorBrush(Colors.Gray),
             ["Red"] = new SolidColorBrush(Colors.Red),
@@ -196,19 +190,35 @@ namespace Geocaching
             string city = dialog.AddressCity;
             string country = dialog.AddressCountry;
             string streetName = dialog.AddressStreetName;
-            int streetNumber = dialog.AddressStreetNumber;
+            byte streetNumber = dialog.AddressStreetNumber;
+
+            string tooltip = $"Latitude:\t\t{latestClickLocation.Latitude}\r\nLongitude:\t{latestClickLocation.Longitude}\r\n" +
+                   $"Name:\t\t{dialog.PersonFirstName + " " + dialog.PersonLastName}\r\nStreet address:\t{streetName + " " + streetNumber}";
             // Add person to map and database here.
-            var pin = AddPin(latestClickLocation, "Person", Colors.Blue);
+            var pin = AddPin(latestClickLocation, tooltip, Colors.Blue);
 
-            pin.MouseDown += (s, a) =>
+            pin.MouseLeftButtonDown += OnPersonPinClick;
+            personPins.Add(pin);
+
+            Person person = new Person()
             {
-                // Handle click on person pin here.
-                MessageBox.Show("You clicked a person");
-                UpdateMap();
+                FirstName = dialog.PersonFirstName,
+                LastName = dialog.PersonLastName,
+                City = city,
+                Country = country,
+                StreetName = streetName,
+                StreetNumber = streetNumber,
+                Latitude = latestClickLocation.Latitude,
+                Longitude = latestClickLocation.Longitude
 
-                // Prevent click from being triggered on map.
-                a.Handled = true;
             };
+
+            db.Add(person);
+            
+            db.SaveChanges();
+            //This catpture the ID set by the DatabBase
+            pin.Tag = person.ID;
+
         }
 
         private void OnPersonPinClick(object sender, MouseButtonEventArgs e)
@@ -252,7 +262,7 @@ namespace Geocaching
             else if (pin.Background == colors["Green"])
             {
                 db.Remove(db.FoundGeocache
-                    .Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == pinCacheID )
+                    .Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == pinCacheID)
                     .Single());
                 db.SaveChanges();
                 pin.Background = colors["Red"];
