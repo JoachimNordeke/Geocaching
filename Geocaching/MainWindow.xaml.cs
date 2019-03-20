@@ -128,6 +128,8 @@ namespace Geocaching
             cachePins.Clear();
             personPins.Clear();
 
+            ActivePinPersonID = 0;
+
             // The following two loops reloads data from the database and paints all the pins.
             foreach (var cache in db.Geocache.Include(g => g.Person))
             {
