@@ -275,13 +275,6 @@ namespace Geocaching
             }
             else if (pin.Background == colors["Green"])
             {
-
-                db.Remove(db.FoundGeocache
-                    .Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == pinCacheID)
-                    .Single());
-                db.SaveChanges();
-                pin.Background = colors["Red"];
-
                 try
                 {
                     db.Remove(db.FoundGeocache.Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == pinCacheID).Single());
