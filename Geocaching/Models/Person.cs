@@ -28,10 +28,4 @@ namespace Geocaching.Models
 
         public ICollection<Geocache> Geocaches { get; set; } = new List<Geocache>();
     }
-
-    [Owned]
-    class Coordinates : GeoCoordinate
-    {
-        
-    }
 }

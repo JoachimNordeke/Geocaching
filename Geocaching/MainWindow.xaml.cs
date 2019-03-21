@@ -48,7 +48,7 @@ namespace Geocaching
 
         // Contains the location of the latest click on the map.
         // The Location object in turn contains information like longitude and latitude.
-        private Location latestClickLocation;
+        private GeoCoordinate latestClickLocation;
 
         private Location gothenburg = new Location(57.719021, 11.991202);
 
@@ -99,7 +99,7 @@ namespace Geocaching
 
                 if (pointerStartPosition != null && pointerStartPosition == point)
                 {
-                    latestClickLocation = map.ViewportPointToLocation(point);
+                    latestClickLocation = ConvertPointToGeoCoordinate(point);
 
                     if (e.LeftButton == MouseButtonState.Released)
                     {
@@ -111,7 +111,7 @@ namespace Geocaching
             MouseRightButtonUp += (sender, e) =>
             {
                 var point = e.GetPosition(this);
-                latestClickLocation = map.ViewportPointToLocation(point);
+                latestClickLocation = ConvertPointToGeoCoordinate(point);
             };
 
             map.ContextMenu = new ContextMenu();
@@ -140,7 +140,7 @@ namespace Geocaching
                 string pTooltip = $"Latitude:\t\t{p.Coordinates.Latitude}\r\nLongitude:\t{p.Coordinates.Longitude}\r\n" +
                     $"Name:\t\t{p.FirstName + " " + p.LastName}\r\nStreet address:\t{p.StreetName + " " + p.StreetNumber}";
 
-                var pPin = AddPin(new Location(p.Coordinates.Latitude, p.Coordinates.Longitude), pTooltip, Colors.Blue);
+                var pPin = AddPin(p.Coordinates, pTooltip, Colors.Blue);
                 pPin.Tag = p.ID;
                 pPin.MouseLeftButtonDown += OnPersonPinClick;
                 personPins.Add(pPin);
@@ -151,7 +151,7 @@ namespace Geocaching
                     $"Made by:\t{p.FirstName + " " + p.LastName}\r\n" +
                     $"Contents:\t{g.Contents}\r\nMessage:\t{g.Message}";
 
-                    var gPin = AddPin(new Location(g.Coordinates.Latitude, g.Coordinates.Longitude), gTooltip, Colors.Gray);
+                    var gPin = AddPin(g.Coordinates, gTooltip, Colors.Gray);
                     gPin.Tag = new Dictionary<string, int> { ["PersonID"] = p.ID, ["CacheID"] = g.ID };
                     gPin.MouseLeftButtonDown += OnCachePinClick;
                     cachePins.Add(gPin);
@@ -203,17 +203,17 @@ namespace Geocaching
             pin.MouseLeftButtonDown += OnCachePinClick;
 
 
-            var geocahce = new Geocache()
+            var geocache = new Geocache()
             {
                 Contents = contents,
-                Coordinates = new GeoCoordinate { Latitude = latestClickLocation.Latitude, Longitude = latestClickLocation.Longitude },
+                Coordinates = latestClickLocation,
                 Message = message,
                 Person = activePinPerson
             };
-            db.Geocache.Add(geocahce);
+            db.Geocache.Add(geocache);
             db.SaveChanges();
 
-            pin.Tag = new Dictionary<string, int> { ["PersonID"] = ActivePinPersonID, ["CacheID"] = geocahce.ID };
+            pin.Tag = new Dictionary<string, int> { ["PersonID"] = ActivePinPersonID, ["CacheID"] = geocache.ID };
             cachePins.Add(pin);
         }
 
@@ -250,8 +250,7 @@ namespace Geocaching
                 Country = country,
                 StreetName = streetName,
                 StreetNumber = streetNumber,
-                Coordinates = new GeoCoordinate { Latitude = latestClickLocation.Latitude, Longitude = latestClickLocation.Longitude }
-
+                Coordinates = latestClickLocation
             };
 
             db.Add(person);
@@ -329,7 +328,13 @@ namespace Geocaching
             args.Handled = true;
         }
 
-        private Pushpin AddPin(Location location, string tooltip, Color color)
+        private GeoCoordinate ConvertPointToGeoCoordinate(Point point)
+        {
+            var location = map.ViewportPointToLocation(point);
+            return new GeoCoordinate { Latitude = location.Latitude, Longitude = location.Longitude };
+        }
+
+        private Pushpin AddPin(GeoCoordinate location, string tooltip, Color color)
         {
             var pin = new Pushpin();
             pin.Cursor = Cursors.Hand;

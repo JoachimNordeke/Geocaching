@@ -5,3 +5,6 @@
 Brad | Pitt | Sweden | Göteborg | Drottningatan | 18 | 57.705178 | 11.965377
 57.712394 | 12.005746 | Brad's first geocache contents | Brad's first geocache message
 57.706712 | 11.976220 | Brad's second geocache contents | Brad's second geocache message
+
+Mimmi | Voge | Sweden | Göteborg | Svängrumsgatan | 1 | 57.66084 | 11.93116
+57.671124 | 11.940931 | Mimmi's first geocache contents | Mimmi's first geocache message
