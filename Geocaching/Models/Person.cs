@@ -4,6 +4,8 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Device.Location;
+using Microsoft.EntityFrameworkCore;
 
 namespace Geocaching.Models
 {
@@ -15,8 +17,7 @@ namespace Geocaching.Models
         public string FirstName { get; set; }
         [Required, MaxLength(50)]
         public string LastName { get; set; }
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
+        public GeoCoordinate Coordinates { get; set; }
         [Required, MaxLength(50)]
         public string Country { get; set; }
         [Required, MaxLength(50)]
@@ -26,5 +27,11 @@ namespace Geocaching.Models
         public byte StreetNumber { get; set; }
 
         public ICollection<Geocache> Geocaches { get; set; } = new List<Geocache>();
+    }
+
+    [Owned]
+    class Coordinates : GeoCoordinate
+    {
+        
     }
 }

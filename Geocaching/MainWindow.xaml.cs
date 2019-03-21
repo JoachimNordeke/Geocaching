@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Maps.MapControl.WPF;
 using System;
 using System.Collections.Generic;
+using System.Device.Location;
 using System.IO;
 using System.Linq;
 using System.Windows;
@@ -61,11 +62,11 @@ namespace Geocaching
         {
             System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 
-            if (applicationId == null)
-            {
-                MessageBox.Show("Please set the applicationId variable before running this program.");
-                Environment.Exit(0);
-            }
+            //if (applicationId == null)
+            //{
+            //    MessageBox.Show("Please set the applicationId variable before running this program.");
+            //    Environment.Exit(0);
+            //}
 
             CreateMap();
             UpdateMap();
@@ -80,12 +81,12 @@ namespace Geocaching
             layer = new MapLayer();
             map.Children.Add(layer);
 
-            Point? mapStartPosition = null;
+            Point? pointerStartPosition = null;
 
             // This will start tracking the pointer's position by giving mapStartPosition a value
             MouseLeftButtonDown += (sender, e) =>
             {
-                mapStartPosition = e.GetPosition(this);
+                pointerStartPosition = e.GetPosition(this);
             };
 
             // This will occur when the mouse is released and if the pointer hasn't moved.
@@ -96,7 +97,7 @@ namespace Geocaching
             {
                 var point = e.GetPosition(this);
 
-                if (mapStartPosition != null && mapStartPosition == point)
+                if (pointerStartPosition != null && pointerStartPosition == point)
                 {
                     latestClickLocation = map.ViewportPointToLocation(point);
 
@@ -136,21 +137,21 @@ namespace Geocaching
             // The following loop reloads data from the database and paints all the pins.
             foreach (var p in db.Person.Include(p => p.Geocaches))
             {
-                string pTooltip = $"Latitude:\t\t{p.Latitude}\r\nLongitude:\t{p.Longitude}\r\n" +
+                string pTooltip = $"Latitude:\t\t{p.Coordinates.Latitude}\r\nLongitude:\t{p.Coordinates.Longitude}\r\n" +
                     $"Name:\t\t{p.FirstName + " " + p.LastName}\r\nStreet address:\t{p.StreetName + " " + p.StreetNumber}";
 
-                var pPin = AddPin(new Location(p.Latitude, p.Longitude), pTooltip, Colors.Blue);
+                var pPin = AddPin(new Location(p.Coordinates.Latitude, p.Coordinates.Longitude), pTooltip, Colors.Blue);
                 pPin.Tag = p.ID;
                 pPin.MouseLeftButtonDown += OnPersonPinClick;
                 personPins.Add(pPin);
 
                 foreach (var g in p.Geocaches)
                 {
-                    string gTooltip = $"Latitude:\t\t{g.Latitude}\r\nLongitude:\t{g.Longitude}\r\n" +
+                    string gTooltip = $"Latitude:\t\t{g.Coordinates.Latitude}\r\nLongitude:\t{g.Coordinates.Longitude}\r\n" +
                     $"Made by:\t{p.FirstName + " " + p.LastName}\r\n" +
                     $"Contents:\t{g.Contents}\r\nMessage:\t{g.Message}";
 
-                    var gPin = AddPin(new Location(g.Latitude, g.Longitude), gTooltip, Colors.Gray);
+                    var gPin = AddPin(new Location(g.Coordinates.Latitude, g.Coordinates.Longitude), gTooltip, Colors.Gray);
                     gPin.Tag = new Dictionary<string, int> { ["PersonID"] = p.ID, ["CacheID"] = g.ID };
                     gPin.MouseLeftButtonDown += OnCachePinClick;
                     cachePins.Add(gPin);
@@ -204,14 +205,9 @@ namespace Geocaching
 
             var geocahce = new Geocache()
             {
-                Contents = contents
-                                            ,
-                Latitude = latestClickLocation.Latitude
-                                            ,
-                Longitude = latestClickLocation.Longitude
-                                            ,
-                Message = message
-                                            ,
+                Contents = contents,
+                Coordinates = new GeoCoordinate { Latitude = latestClickLocation.Latitude, Longitude = latestClickLocation.Longitude },
+                Message = message,
                 Person = activePinPerson
             };
             db.Geocache.Add(geocahce);
@@ -254,8 +250,7 @@ namespace Geocaching
                 Country = country,
                 StreetName = streetName,
                 StreetNumber = streetNumber,
-                Latitude = latestClickLocation.Latitude,
-                Longitude = latestClickLocation.Longitude
+                Coordinates = new GeoCoordinate { Latitude = latestClickLocation.Latitude, Longitude = latestClickLocation.Longitude }
 
             };
 
@@ -282,12 +277,12 @@ namespace Geocaching
 
             foreach (var pin in cachePins)
             {
-                int pinPersonID = (pin.Tag as Dictionary<string, int>)["PersonID"];
-                int pinCacheID = (pin.Tag as Dictionary<string, int>)["CacheID"];
+                int cachePinPersonID = (pin.Tag as Dictionary<string, int>)["PersonID"];
+                int cachePinCacheID = (pin.Tag as Dictionary<string, int>)["CacheID"];
 
-                if (pinPersonID == ActivePinPersonID)
+                if (cachePinPersonID == ActivePinPersonID)
                     pin.Background = colors["Black"];
-                else if (foundGeocaches.Contains(pinCacheID))
+                else if (foundGeocaches.Contains(cachePinCacheID))
                     pin.Background = colors["Green"];
                 else
                     pin.Background = colors["Red"];
@@ -299,13 +294,13 @@ namespace Geocaching
         private void OnCachePinClick(object sender, MouseButtonEventArgs args)
         {
             var pin = sender as Pushpin;
-            int pinCacheID = (pin.Tag as Dictionary<string, int>)["CacheID"];
+            int cachePinCacheID = (pin.Tag as Dictionary<string, int>)["CacheID"];
 
             if (pin.Background == colors["Red"])
             {
                 try
                 {
-                    db.Add(new FoundGeocache { PersonID = ActivePinPersonID, GeocacheID = pinCacheID });
+                    db.Add(new FoundGeocache { PersonID = ActivePinPersonID, GeocacheID = cachePinCacheID });
                     db.SaveChanges();
                     pin.Background = colors["Green"];
                 }
@@ -319,7 +314,7 @@ namespace Geocaching
             {
                 try
                 {
-                    db.Remove(db.FoundGeocache.Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == pinCacheID).Single());
+                    db.Remove(db.FoundGeocache.Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == cachePinCacheID).Single());
                     db.SaveChanges();
                     pin.Background = colors["Red"];
                 }
@@ -386,8 +381,7 @@ namespace Geocaching
                             City = temp[3],
                             StreetName = temp[4],
                             StreetNumber = byte.Parse(temp[5]),
-                            Latitude = double.Parse(temp[6]),
-                            Longitude = double.Parse(temp[7])
+                            Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[6]), Longitude = double.Parse(temp[7]) }
                         };
                         db.Add(person);
                         db.SaveChanges();
@@ -397,8 +391,7 @@ namespace Geocaching
                         geocache = new Geocache
                         {
                             Person = person,
-                            Latitude = double.Parse(temp[0]),
-                            Longitude = double.Parse(temp[1]),
+                            Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[0]), Longitude = double.Parse(temp[1]) },
                             Contents = temp[2],
                             Message = temp[3]
                         };
@@ -437,15 +430,15 @@ namespace Geocaching
                             p.City,
                             p.StreetName,
                             Convert.ToString(p.StreetNumber),
-                            Convert.ToString(p.Latitude),
-                            Convert.ToString(p.Longitude)
+                            Convert.ToString(p.Coordinates.Latitude),
+                            Convert.ToString(p.Coordinates.Longitude)
                     }));
 
                 foreach (var g in db.Geocache.Where(g => g.Person == p))
                 {
                     lines.Add(string.Join(" | ", new[] {
-                            Convert.ToString(g.Latitude),
-                            Convert.ToString(g.Longitude),
+                            Convert.ToString(g.Coordinates.Latitude),
+                            Convert.ToString(g.Coordinates.Longitude),
                             g.Contents,
                             g.Message
                         }));
