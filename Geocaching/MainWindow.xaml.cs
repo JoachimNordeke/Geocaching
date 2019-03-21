@@ -145,11 +145,11 @@ namespace Geocaching
                 foreach (var g in p.Geocaches)
                 {
                     string gTooltip = $"Latitude:\t\t{g.Latitude}\r\nLongitude:\t{g.Longitude}\r\n" +
-                    $"Made by:\t{g.Person.FirstName + " " + g.Person.LastName}\r\n" +
+                    $"Made by:\t{p.FirstName + " " + p.LastName}\r\n" +
                     $"Contents:\t{g.Contents}\r\nMessage:\t{g.Message}";
 
                     var gPin = AddPin(new Location(g.Latitude, g.Longitude), gTooltip, Colors.Gray);
-                    gPin.Tag = new Dictionary<string, int> { ["PersonID"] = g.Person.ID, ["CacheID"] = g.ID };
+                    gPin.Tag = new Dictionary<string, int> { ["PersonID"] = p.ID, ["CacheID"] = g.ID };
                     gPin.MouseLeftButtonDown += OnCachePinClick;
                     cachePins.Add(gPin);
                 }
