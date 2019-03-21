@@ -133,28 +133,30 @@ namespace Geocaching
 
             ActivePinPersonID = 0;
 
-            // The following two loops reloads data from the database and paints all the pins.
-            foreach (var cache in db.Geocache.Include(g => g.Person))
+            // The following loop reloads data from the database and paints all the pins.
+            foreach (var p in db.Person.Include(p => p.Geocaches))
             {
-                string tooltip = $"Latitude:\t\t{cache.Latitude}\r\nLongitude:\t{cache.Longitude}\r\n" +
-                    $"Made by:\t{cache.Person.FirstName + " " + cache.Person.LastName}\r\n" +
-                    $"Contents:\t{cache.Contents}\r\nMessage:\t{cache.Message}";
-
-                var pin = AddPin(new Location(cache.Latitude, cache.Longitude), tooltip, Colors.Gray);
-                pin.Tag = new Dictionary<string, int> { ["PersonID"] = cache.Person.ID, ["CacheID"] = cache.ID };
-                pin.MouseLeftButtonDown += OnCachePinClick;
-                cachePins.Add(pin);
-            }
-            foreach (var p in db.Person)
-            {
-                string tooltip = $"Latitude:\t\t{p.Latitude}\r\nLongitude:\t{p.Longitude}\r\n" +
+                string pTooltip = $"Latitude:\t\t{p.Latitude}\r\nLongitude:\t{p.Longitude}\r\n" +
                     $"Name:\t\t{p.FirstName + " " + p.LastName}\r\nStreet address:\t{p.StreetName + " " + p.StreetNumber}";
 
-                var pin = AddPin(new Location(p.Latitude, p.Longitude), tooltip, Colors.Blue);
-                pin.Tag = p.ID;
-                pin.MouseLeftButtonDown += OnPersonPinClick;
-                personPins.Add(pin);
+                var pPin = AddPin(new Location(p.Latitude, p.Longitude), pTooltip, Colors.Blue);
+                pPin.Tag = p.ID;
+                pPin.MouseLeftButtonDown += OnPersonPinClick;
+                personPins.Add(pPin);
+
+                foreach (var g in p.Geocaches)
+                {
+                    string gTooltip = $"Latitude:\t\t{g.Latitude}\r\nLongitude:\t{g.Longitude}\r\n" +
+                    $"Made by:\t{p.FirstName + " " + p.LastName}\r\n" +
+                    $"Contents:\t{g.Contents}\r\nMessage:\t{g.Message}";
+
+                    var gPin = AddPin(new Location(g.Latitude, g.Longitude), gTooltip, Colors.Gray);
+                    gPin.Tag = new Dictionary<string, int> { ["PersonID"] = p.ID, ["CacheID"] = g.ID };
+                    gPin.MouseLeftButtonDown += OnCachePinClick;
+                    cachePins.Add(gPin);
+                }
             }
+            
             // It is recommended (but optional) to use this method for setting the color and opacity of each pin after every user interaction that might change something.
             // This method should then be called once after every significant action, such as clicking on a pin, clicking on the map, or clicking a context menu option.
         }
