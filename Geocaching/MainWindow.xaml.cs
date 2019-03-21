@@ -41,6 +41,8 @@ namespace Geocaching
         //To keep track of wich personPin is selected at the moment. Used in OnPersonPinClick and OnCachePinClick.
         private int ActivePinPersonID = 0;
 
+        private Person activePinPerson;
+
         private MapLayer layer;
 
         // Contains the location of the latest click on the map.
@@ -165,28 +167,56 @@ namespace Geocaching
 
         private void OnAddGeocacheClick(object sender, RoutedEventArgs args)
         {
-            var dialog = new GeocacheDialog();
-            dialog.Owner = this;
+            if (ActivePinPersonID == 0)
+            {
+                MessageBox.Show("Select Person First", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            var dialog = new GeocacheDialog
+            {
+                Owner = this
+            };
             dialog.ShowDialog();
             if (dialog.DialogResult == false)
             {
                 return;
             }
 
+
+
             string contents = dialog.GeocacheContents;
             string message = dialog.GeocacheMessage;
+            activePinPerson = db.Person.First(p => p.ID == ActivePinPersonID);
+
+            string tooltip = $"Latitude:\t\t{latestClickLocation.Latitude}\r\nLongitude:\t{latestClickLocation.Longitude}\r\n" +
+                    $"Made by:\t{activePinPerson.FirstName + " " + activePinPerson.LastName}\r\n" +
+                    $"Contents:\t{contents}\r\nMessage:\t{message}";
+
+
             // Add geocache to map and database here.
-            var pin = AddPin(latestClickLocation, "Person", Colors.Gray);
+            var pin = AddPin(latestClickLocation, tooltip, Colors.Black);
 
-            pin.MouseDown += (s, a) =>
+            pin.MouseLeftButtonDown += OnCachePinClick;
+
+
+            var geocahce = new Geocache()
             {
-                // Handle click on geocache pin here.
-                MessageBox.Show("You clicked a geocache");
-                UpdateMap();
-
-                // Prevent click from being triggered on map.
-                a.Handled = true;
+                Contents = contents
+                                            ,
+                Latitude = latestClickLocation.Latitude
+                                            ,
+                Longitude = latestClickLocation.Longitude
+                                            ,
+                Message = message
+                                            ,
+                Person = activePinPerson
             };
+            db.Geocache.Add(geocahce);
+            db.SaveChanges();
+
+            pin.Tag = new Dictionary<string, int> { ["PersonID"] = ActivePinPersonID, ["CacheID"] = geocahce.ID };
+            cachePins.Add(pin);
         }
 
         private void OnAddPersonClick(object sender, RoutedEventArgs args)
@@ -233,25 +263,27 @@ namespace Geocaching
             //This catpture the ID set by the DatabBase
             pin.Tag = person.ID;
 
+            activePinPerson = person;
+
         }
 
         private void OnPersonPinClick(object sender, MouseButtonEventArgs args)
         {
             var pushpin = sender as Pushpin;
-            int personID = (int)pushpin.Tag;
-            ActivePinPersonID = personID;
+            ActivePinPersonID = (int)pushpin.Tag;
+
             pushpin.Opacity = 1;
 
-            personPins.Where(p => (int)p.Tag != personID).ToList().ForEach(p => p.Opacity = 0.5);
+            personPins.Where(p => (int)p.Tag != ActivePinPersonID).ToList().ForEach(p => p.Opacity = 0.5);
 
-            var foundGeocaches = db.FoundGeocache.Where(f => f.PersonID == personID).Include(f => f.GeocacheID).Select(f => f.GeocacheID).ToArray();
+            var foundGeocaches = db.FoundGeocache.Where(f => f.PersonID == ActivePinPersonID).Include(f => f.GeocacheID).Select(f => f.GeocacheID).ToArray();
 
             foreach (var pin in cachePins)
             {
                 int pinPersonID = (pin.Tag as Dictionary<string, int>)["PersonID"];
                 int pinCacheID = (pin.Tag as Dictionary<string, int>)["CacheID"];
 
-                if (pinPersonID == personID)
+                if (pinPersonID == ActivePinPersonID)
                     pin.Background = colors["Black"];
                 else if (foundGeocaches.Contains(pinCacheID))
                     pin.Background = colors["Green"];
