@@ -70,8 +70,8 @@ namespace Geocaching
             //}
 
             CreateMap();
-            UpdateMap();
-            // Load data from database and populate map here.
+
+            LoadFromDatabase();
         }
 
         private void CreateMap()
@@ -124,41 +124,26 @@ namespace Geocaching
             var addGeocacheMenuItem = new MenuItem { Header = "Add Geocache" };
             map.ContextMenu.Items.Add(addGeocacheMenuItem);
             addGeocacheMenuItem.Click += OnAddGeocacheClick;
+
+            var reloadFromDatabaseItem = new MenuItem { Header = "Reload from database" };
+            map.ContextMenu.Items.Add(reloadFromDatabaseItem);
+            reloadFromDatabaseItem.Click += OnReloadFromDatabaseClick;
         }
 
         private void UpdateMap()
         {
-            // Clears the pin collections.
-            layer.Children.Clear();
-            cachePins.Clear();
-            personPins.Clear();
+            foreach (var pin in personPins)
+            {
+                pin.Opacity = 1;
+            }
+            foreach (var pin in cachePins)
+            {
+                pin.Opacity = 1;
+                pin.Background = colors["Gray"];
+            }
 
             ActivePinPersonID = 0;
 
-            // The following loop reloads data from the database and paints all the pins.
-            foreach (var p in db.Person.Include(p => p.Geocaches))
-            {
-                string pTooltip = $"Latitude:\t\t{p.Coordinates.Latitude}\r\nLongitude:\t{p.Coordinates.Longitude}\r\n" +
-                    $"Name:\t\t{p.FirstName + " " + p.LastName}\r\nStreet address:\t{p.StreetName + " " + p.StreetNumber}";
-
-                var pPin = AddPin(p.Coordinates, pTooltip, Colors.Blue);
-                pPin.Tag = p.ID;
-                pPin.MouseLeftButtonDown += OnPersonPinClick;
-                personPins.Add(pPin);
-
-                foreach (var g in p.Geocaches)
-                {
-                    string gTooltip = $"Latitude:\t\t{g.Coordinates.Latitude}\r\nLongitude:\t{g.Coordinates.Longitude}\r\n" +
-                    $"Made by:\t{p.FirstName + " " + p.LastName}\r\n" +
-                    $"Contents:\t{g.Contents}\r\nMessage:\t{g.Message}";
-
-                    var gPin = AddPin(g.Coordinates, gTooltip, Colors.Gray);
-                    gPin.Tag = new Dictionary<string, int> { ["PersonID"] = p.ID, ["CacheID"] = g.ID };
-                    gPin.MouseLeftButtonDown += OnCachePinClick;
-                    cachePins.Add(gPin);
-                }
-            }
-            
             // It is recommended (but optional) to use this method for setting the color and opacity of each pin after every user interaction that might change something.
             // This method should then be called once after every significant action, such as clicking on a pin, clicking on the map, or clicking a context menu option.
         }
@@ -167,6 +152,15 @@ namespace Geocaching
         {
             // Handle map click here.
             UpdateMap();
+        }
+
+        private void OnReloadFromDatabaseClick(object sender, RoutedEventArgs args)
+        {
+            layer.Children.Clear();
+            personPins.Clear();
+            cachePins.Clear();
+
+            LoadFromDatabase();
         }
 
         private void OnAddGeocacheClick(object sender, RoutedEventArgs args)
@@ -287,7 +281,7 @@ namespace Geocaching
                 else
                     pin.Background = colors["Red"];
             }
-            // To prevent the calling of OnMapLeftClick.
+
             args.Handled = true;
         }
 
@@ -355,7 +349,7 @@ namespace Geocaching
             if (result != true) return;
 
             string path = dialog.FileName;
-            
+
             string[] lines = File.ReadLines(path).ToArray();
 
             db.Person.RemoveRange(db.Person);
@@ -453,6 +447,32 @@ namespace Geocaching
             }
 
             File.WriteAllLines(path, lines);
+        }
+
+        private void LoadFromDatabase()
+        {
+            foreach (var p in db.Person.Include(p => p.Geocaches))
+            {
+                string pTooltip = $"Latitude:\t\t{p.Coordinates.Latitude}\r\nLongitude:\t{p.Coordinates.Longitude}\r\n" +
+                    $"Name:\t\t{p.FirstName + " " + p.LastName}\r\nStreet address:\t{p.StreetName + " " + p.StreetNumber}";
+
+                var pPin = AddPin(p.Coordinates, pTooltip, Colors.Blue);
+                pPin.Tag = p.ID;
+                pPin.MouseLeftButtonDown += OnPersonPinClick;
+                personPins.Add(pPin);
+
+                foreach (var g in p.Geocaches)
+                {
+                    string gTooltip = $"Latitude:\t\t{g.Coordinates.Latitude}\r\nLongitude:\t{g.Coordinates.Longitude}\r\n" +
+                    $"Made by:\t{p.FirstName + " " + p.LastName}\r\n" +
+                    $"Contents:\t{g.Contents}\r\nMessage:\t{g.Message}";
+
+                    var gPin = AddPin(g.Coordinates, gTooltip, Colors.Gray);
+                    gPin.Tag = new Dictionary<string, int> { ["PersonID"] = p.ID, ["CacheID"] = g.ID };
+                    gPin.MouseLeftButtonDown += OnCachePinClick;
+                    cachePins.Add(gPin);
+                }
+            }
         }
     }
 }
