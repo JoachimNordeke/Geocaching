@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Device.Location;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -345,7 +346,7 @@ namespace Geocaching
             return pin;
         }
 
-        private void OnLoadFromFileClick(object sender, RoutedEventArgs args)
+        private async void OnLoadFromFileClick(object sender, RoutedEventArgs args)
         {
             var dialog = new Microsoft.Win32.OpenFileDialog();
             dialog.DefaultExt = ".txt";
@@ -365,46 +366,80 @@ namespace Geocaching
             db.Person.RemoveRange(db.Person);
             db.Geocache.RemoveRange(db.Geocache);
             db.FoundGeocache.RemoveRange(db.FoundGeocache);
-            db.SaveChanges();
+            await db.SaveChangesAsync();
 
+            bool NewPerson = true;
             Person person = null;
-            Geocache geocache = null;
+            Geocache geocache;
+            var PersonFoundGeocaches = new Dictionary<Person, int[]>();
+            var GeocacheIdFromFile = new Dictionary<int, Geocache>();
 
             foreach (var line in lines)
             {
-                if (line != "")
+                if (line == "") { NewPerson = true; continue; }
+
+
+                if (NewPerson)
                 {
                     string[] temp = line.Split('|').Select(l => l.Trim()).ToArray();
 
-                    if (char.IsLetter(temp[0][0]))
+                    person = new Person
                     {
-                        person = new Person()
-                        {
-                            FirstName = temp[0],
-                            LastName = temp[1],
-                            Country = temp[2],
-                            City = temp[3],
-                            StreetName = temp[4],
-                            StreetNumber = byte.Parse(temp[5]),
-                            Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[6]), Longitude = double.Parse(temp[7]) }
-                        };
-                        db.Add(person);
-                        db.SaveChanges();
-                    }
-                    else
+                        FirstName = temp[0],
+                        LastName = temp[1],
+                        Country = temp[2],
+                        City = temp[3],
+                        StreetName = temp[4],
+                        StreetNumber = byte.Parse(temp[5]),
+                        Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[6]), Longitude = double.Parse(temp[7]) }
+                    };
+
+                    db.Add(person);
+
+                    NewPerson = false;
+
+                    continue;
+                }
+
+                if (!NewPerson && !line.StartsWith("Found"))
+                {
+                    string[] temp = line.Split('|').Select(l => l.Trim()).ToArray();
+
+                    geocache = new Geocache
                     {
-                        geocache = new Geocache
-                        {
-                            Person = person,
-                            Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[0]), Longitude = double.Parse(temp[1]) },
-                            Contents = temp[2],
-                            Message = temp[3]
-                        };
-                        db.Add(geocache);
-                        db.SaveChanges();
-                    }
+                        Person = person,
+                        Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[1]), Longitude = double.Parse(temp[2]) },
+                        Contents = temp[3],
+                        Message = temp[4]
+                    };
+
+                    GeocacheIdFromFile.Add(int.Parse(temp[0]), geocache);
+
+                    db.Add(geocache);
+                }
+
+                if (!NewPerson && line.StartsWith("Found"))
+                {
+                    int[] founds = line.Substring(7).Split(',').Select(l => int.Parse(l.Trim())).ToArray();
+                    PersonFoundGeocaches.Add(person, founds);
                 }
             }
+
+            foreach (var p in PersonFoundGeocaches)
+            {
+                foreach (var cacheNumber in p.Value)
+                {
+                    var foundCache = new FoundGeocache
+                    {
+                        Person = p.Key,
+                        Geocache = GeocacheIdFromFile[cacheNumber]
+                    };
+                    db.Add(foundCache);
+                }
+            }
+
+            await db.SaveChangesAsync();
+
             UpdateMap();
         }
 
