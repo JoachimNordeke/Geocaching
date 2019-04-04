@@ -27,5 +27,6 @@ namespace Geocaching.Models
         public byte StreetNumber { get; set; }
 
         public ICollection<Geocache> Geocaches { get; set; } = new List<Geocache>();
+        public ICollection<FoundGeocache> FoundGeocaches { get; set; }
     }
 }

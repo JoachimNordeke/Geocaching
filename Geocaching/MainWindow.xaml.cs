@@ -458,10 +458,10 @@ namespace Geocaching
             string path = dialog.FileName;
             // Write to the selected file here.
 
-            //Felhantering saknas på följande scope
+            
 
             var lines = new List<string>();
-            foreach (var p in db.Person.Include(p => p.Geocaches))
+            foreach (var p in db.Person.Include(p => p.Geocaches).Include(p => p.FoundGeocaches).ThenInclude(p => p.Geocache))
             {
                 lines.Add(string.Join(" | ", new[] {
                             p.FirstName,
@@ -474,9 +474,10 @@ namespace Geocaching
                             Convert.ToString(p.Coordinates.Longitude)
                     }));
 
-                foreach (var g in db.Geocache.Where(g => g.Person == p))
+                foreach (var g in p.Geocaches)
                 {
                     lines.Add(string.Join(" | ", new[] {
+                            g.ID.ToString(),
                             Convert.ToString(g.Coordinates.Latitude),
                             Convert.ToString(g.Coordinates.Longitude),
                             g.Contents,
@@ -484,8 +485,13 @@ namespace Geocaching
                         }));
                 }
 
+                int[] foundGeocachesId = p.FoundGeocaches.Select(fg => fg.Geocache.ID).ToArray();
+
+                lines.Add("Found: " + string.Join(", ", foundGeocachesId));
+
                 lines.Add("");
             }
+
             File.WriteAllLines(path, lines);
         }
     }

@@ -1,0 +1,15 @@
+Jakob | Kallin | Sweden | Göteborg | Anders Personsgatan | 17 | 57.709917 | 11.994034
+6019 | 57.692847 | 12.058648 | Jakob's first geocache contents | Jakob's first geocache message
+6020 | 57.704374 | 11.989266 | Jakob's second geocache contents | Jakob's second geocache message
+6021 | 57.698727 | 11.957695 | Jakob's third geocache contents | Jakob's third geocache message
+Found: 6022, 6024
+
+Brad | Pitt | Sweden | Göteborg | Drottningatan | 18 | 57.705178 | 11.965377
+6022 | 57.712394 | 12.005746 | Brad's first geocache contents | Brad's first geocache message
+6023 | 57.706712 | 11.97622 | Brad's second geocache contents | Brad's second geocache message
+Found: 6019, 6021, 6024
+
+Angelina | Jolie | Sweden | Göteborg | Engelbrektsgatan | 27 | 57.698589 | 11.977179
+6024 | 57.697913 | 11.969342 | Angelina's first geocache contents | Angelina's first geocache message
+Found: 6020, 6023
+
