@@ -284,9 +284,7 @@ namespace Geocaching
 
             args.Handled = true;
         }
-
-
-        // No async needed as the method is very light
+       
         private void OnCachePinClick(object sender, MouseButtonEventArgs args)
         {
             var pin = sender as Pushpin;
