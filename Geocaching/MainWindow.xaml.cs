@@ -59,7 +59,7 @@ namespace Geocaching
             Start();
         }
 
-        private void Start()
+        private async void Start()
         {
             System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
 
@@ -71,7 +71,7 @@ namespace Geocaching
 
             CreateMap();
 
-            LoadFromDatabase();
+            await LoadFromDatabaseAsync();
         }
 
         private void CreateMap()
@@ -154,13 +154,13 @@ namespace Geocaching
             UpdateMap();
         }
 
-        private void OnReloadFromDatabaseClick(object sender, RoutedEventArgs args)
+        private async void OnReloadFromDatabaseClick(object sender, RoutedEventArgs args)
         {
             layer.Children.Clear();
             personPins.Clear();
             cachePins.Clear();
 
-            LoadFromDatabase();
+            await LoadFromDatabaseAsync();
         }
 
         private void OnAddGeocacheClick(object sender, RoutedEventArgs args)
@@ -267,7 +267,7 @@ namespace Geocaching
 
             personPins.Where(p => (int)p.Tag != ActivePinPersonID).ToList().ForEach(p => p.Opacity = 0.5);
 
-            var foundGeocaches = db.FoundGeocache.Where(f => f.PersonID == ActivePinPersonID).Include(f => f.GeocacheID).Select(f => f.GeocacheID).ToArray();
+            var foundGeocaches =  db.FoundGeocache.Where(f => f.PersonID == ActivePinPersonID).Include(f => f.GeocacheID).Select(f => f.GeocacheID).ToArray();
 
             foreach (var pin in cachePins)
             {
@@ -285,6 +285,8 @@ namespace Geocaching
             args.Handled = true;
         }
 
+
+        // No async needed as the method is very light
         private void OnCachePinClick(object sender, MouseButtonEventArgs args)
         {
             var pin = sender as Pushpin;
@@ -331,26 +333,35 @@ namespace Geocaching
 
         private Pushpin AddPin(GeoCoordinate location, string tooltip, Color color)
         {
-            var pin = new Pushpin();
-            pin.Cursor = Cursors.Hand;
-            pin.Background = new SolidColorBrush(color);
+            var pin = new Pushpin
+            {
+                Cursor = Cursors.Hand,
+                Background = new SolidColorBrush(color)
+            };
             ToolTipService.SetToolTip(pin, tooltip);
             ToolTipService.SetInitialShowDelay(pin, 0);
             layer.AddChild(pin, new Location(location.Latitude, location.Longitude));
             return pin;
         }
 
-        private void OnLoadFromFileClick(object sender, RoutedEventArgs args)
+        private async void OnLoadFromFileClick(object sender, RoutedEventArgs args)
         {
-            var dialog = new Microsoft.Win32.OpenFileDialog();
-            dialog.DefaultExt = ".txt";
-            dialog.Filter = "Text documents (.txt)|*.txt";
+            var dialog = new Microsoft.Win32.OpenFileDialog
+            {
+                DefaultExt = ".txt",
+                Filter = "Text documents (.txt)|*.txt"
+            };
+
             bool? result = dialog.ShowDialog();
+
             if (result != true) return;
 
             string path = dialog.FileName;
 
-            string[] lines = File.ReadLines(path).ToArray();
+            string[] lines = await Task.Run(() =>
+            {
+                return File.ReadLines(path).ToArray();
+            });
 
             db.Person.RemoveRange(db.Person);
             db.Geocache.RemoveRange(db.Geocache);
@@ -405,19 +416,21 @@ namespace Geocaching
 
             foreach (var p in PersonFoundGeocaches)
             {
-                p.Value.ToList().ForEach(CacheID => db.Add(new FoundGeocache { Person = p.Key, Geocache = GeocacheIdFromFile[CacheID] }));
+                p.Value.ToList().ForEach(async CacheID => await db.AddAsync(new FoundGeocache { Person = p.Key, Geocache = GeocacheIdFromFile[CacheID] }));
             }
 
             try { db.SaveChanges(); UpdateMap(); }
             catch { MessageBox.Show("Something went wrong when loading the file.", "Error"); }
         }
 
-        private void OnSaveToFileClick(object sender, RoutedEventArgs args)
+        private async void OnSaveToFileClick(object sender, RoutedEventArgs args)
         {
-            var dialog = new Microsoft.Win32.SaveFileDialog();
-            dialog.DefaultExt = ".txt";
-            dialog.Filter = "Text documents (.txt)|*.txt";
-            dialog.FileName = "Geocaches";
+            var dialog = new Microsoft.Win32.SaveFileDialog
+            {
+                DefaultExt = ".txt",
+                Filter = "Text documents (.txt)|*.txt",
+                FileName = "Geocaches"
+            };
             bool? result = dialog.ShowDialog();
             if (result != true)
             {
@@ -427,7 +440,7 @@ namespace Geocaching
             string path = dialog.FileName;
 
             var lines = new List<string>();
-            foreach (var p in db.Person.Include(p => p.Geocaches).Include(p => p.FoundGeocaches).ThenInclude(p => p.Geocache))
+            foreach (var p in await db.Person.Include(p => p.Geocaches).Include(p => p.FoundGeocaches).ThenInclude(p => p.Geocache).ToListAsync())
             {
                 lines.Add(string.Join(" | ", new[] { p.FirstName, p.LastName, p.Country, p.City, p.StreetName,
                     Convert.ToString(p.StreetNumber), Convert.ToString(p.Coordinates.Latitude),
@@ -446,12 +459,16 @@ namespace Geocaching
                 lines.Add("");
             }
 
-            File.WriteAllLines(path, lines);
+            await Task.Run(() =>
+             {
+                 File.WriteAllLines(path, lines);
+             });
+
         }
 
-        private void LoadFromDatabase()
+        private async Task LoadFromDatabaseAsync()
         {
-            foreach (var p in db.Person.Include(p => p.Geocaches))
+            foreach (var p in await db.Person.Include(p => p.Geocaches).ToListAsync())
             {
                 string pTooltip = $"Latitude:\t\t{p.Coordinates.Latitude}\r\nLongitude:\t{p.Coordinates.Longitude}\r\n" +
                     $"Name:\t\t{p.FirstName + " " + p.LastName}\r\nStreet address:\t{p.StreetName + " " + p.StreetNumber}";
