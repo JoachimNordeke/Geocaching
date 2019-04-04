@@ -346,101 +346,76 @@ namespace Geocaching
             return pin;
         }
 
-        private async void OnLoadFromFileClick(object sender, RoutedEventArgs args)
+        private void OnLoadFromFileClick(object sender, RoutedEventArgs args)
         {
             var dialog = new Microsoft.Win32.OpenFileDialog();
             dialog.DefaultExt = ".txt";
             dialog.Filter = "Text documents (.txt)|*.txt";
             bool? result = dialog.ShowDialog();
-            if (result != true)
-            {
-                return;
-            }
+            if (result != true) return;
 
             string path = dialog.FileName;
-            // Read the selected file here.
-
-            //Felhantering saknas i följande scope.
-            var lines = File.ReadLines(path).ToArray();
+            
+            string[] lines = File.ReadLines(path).ToArray();
 
             db.Person.RemoveRange(db.Person);
             db.Geocache.RemoveRange(db.Geocache);
             db.FoundGeocache.RemoveRange(db.FoundGeocache);
-            await db.SaveChangesAsync();
 
-            bool NewPerson = true;
-            Person person = null;
+            bool AddNewPerson = true;
+            Person person = null; // Set to null to be usable in the 'else if' statement below.
             Geocache geocache;
             var PersonFoundGeocaches = new Dictionary<Person, int[]>();
             var GeocacheIdFromFile = new Dictionary<int, Geocache>();
 
             foreach (var line in lines)
             {
-                if (line == "") { NewPerson = true; continue; }
-
-
-                if (NewPerson)
+                if (line != "")
                 {
-                    string[] temp = line.Split('|').Select(l => l.Trim()).ToArray();
-
-                    person = new Person
+                    if (AddNewPerson)
                     {
-                        FirstName = temp[0],
-                        LastName = temp[1],
-                        Country = temp[2],
-                        City = temp[3],
-                        StreetName = temp[4],
-                        StreetNumber = byte.Parse(temp[5]),
-                        Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[6]), Longitude = double.Parse(temp[7]) }
-                    };
-
-                    db.Add(person);
-
-                    NewPerson = false;
-
-                    continue;
-                }
-
-                if (!NewPerson && !line.StartsWith("Found"))
-                {
-                    string[] temp = line.Split('|').Select(l => l.Trim()).ToArray();
-
-                    geocache = new Geocache
+                        string[] temp = line.Split('|').Select(l => l.Trim()).ToArray();
+                        person = new Person
+                        {
+                            FirstName = temp[0],
+                            LastName = temp[1],
+                            Country = temp[2],
+                            City = temp[3],
+                            StreetName = temp[4],
+                            StreetNumber = byte.Parse(temp[5]),
+                            Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[6]), Longitude = double.Parse(temp[7]) }
+                        };
+                        db.Add(person);
+                        AddNewPerson = false;
+                    }
+                    else if (!line.StartsWith("Found"))
                     {
-                        Person = person,
-                        Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[1]), Longitude = double.Parse(temp[2]) },
-                        Contents = temp[3],
-                        Message = temp[4]
-                    };
-
-                    GeocacheIdFromFile.Add(int.Parse(temp[0]), geocache);
-
-                    db.Add(geocache);
-                }
-
-                if (!NewPerson && line.StartsWith("Found"))
-                {
-                    int[] founds = line.Substring(7).Split(',').Select(l => int.Parse(l.Trim())).ToArray();
-                    PersonFoundGeocaches.Add(person, founds);
+                        string[] temp = line.Split('|').Select(l => l.Trim()).ToArray();
+                        geocache = new Geocache
+                        {
+                            Person = person,
+                            Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[1]), Longitude = double.Parse(temp[2]) },
+                            Contents = temp[3],
+                            Message = temp[4]
+                        };
+                        GeocacheIdFromFile.Add(int.Parse(temp[0]), geocache);
+                        db.Add(geocache);
+                    }
+                    else
+                    {
+                        PersonFoundGeocaches.Add(person, line.Substring(7).Split(',').Select(l => int.Parse(l.Trim())).ToArray());
+                        AddNewPerson = true;
+                    }
                 }
             }
 
             foreach (var p in PersonFoundGeocaches)
             {
-                foreach (var cacheNumber in p.Value)
-                {
-                    var foundCache = new FoundGeocache
-                    {
-                        Person = p.Key,
-                        Geocache = GeocacheIdFromFile[cacheNumber]
-                    };
-                    db.Add(foundCache);
-                }
+                p.Value.ToList().ForEach(CacheID => db.Add(new FoundGeocache { Person = p.Key, Geocache = GeocacheIdFromFile[CacheID] }));
             }
 
-            await db.SaveChangesAsync();
-
-            UpdateMap();
+            try { db.SaveChanges(); UpdateMap(); }
+            catch { MessageBox.Show("Something went wrong when loading the file.", "Error"); }
         }
 
         private void OnSaveToFileClick(object sender, RoutedEventArgs args)
@@ -456,33 +431,18 @@ namespace Geocaching
             }
 
             string path = dialog.FileName;
-            // Write to the selected file here.
-
-            
 
             var lines = new List<string>();
             foreach (var p in db.Person.Include(p => p.Geocaches).Include(p => p.FoundGeocaches).ThenInclude(p => p.Geocache))
             {
-                lines.Add(string.Join(" | ", new[] {
-                            p.FirstName,
-                            p.LastName,
-                            p.Country,
-                            p.City,
-                            p.StreetName,
-                            Convert.ToString(p.StreetNumber),
-                            Convert.ToString(p.Coordinates.Latitude),
-                            Convert.ToString(p.Coordinates.Longitude)
-                    }));
+                lines.Add(string.Join(" | ", new[] { p.FirstName, p.LastName, p.Country, p.City, p.StreetName,
+                    Convert.ToString(p.StreetNumber), Convert.ToString(p.Coordinates.Latitude),
+                    Convert.ToString(p.Coordinates.Longitude) }));
 
                 foreach (var g in p.Geocaches)
                 {
-                    lines.Add(string.Join(" | ", new[] {
-                            g.ID.ToString(),
-                            Convert.ToString(g.Coordinates.Latitude),
-                            Convert.ToString(g.Coordinates.Longitude),
-                            g.Contents,
-                            g.Message
-                        }));
+                    lines.Add(string.Join(" | ", new[] { g.ID.ToString(), Convert.ToString(g.Coordinates.Latitude),
+                            Convert.ToString(g.Coordinates.Longitude), g.Contents, g.Message }));
                 }
 
                 int[] foundGeocachesId = p.FoundGeocaches.Select(fg => fg.Geocache.ID).ToArray();
