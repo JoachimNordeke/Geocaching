@@ -386,8 +386,12 @@ namespace Geocaching
                             City = temp[3],
                             StreetName = temp[4],
                             StreetNumber = byte.Parse(temp[5]),
-                            Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[6]), Longitude = double.Parse(temp[7]) }
+                            Coordinates = new GeoCoordinate {
+                                Latitude = double.Parse(temp[6].Replace('.', ',')),
+                                Longitude = double.Parse(temp[7].Replace('.', ','))
+                            }
                         };
+
                         db.Add(person);
                         AddNewPerson = false;
                     }
@@ -397,7 +401,9 @@ namespace Geocaching
                         geocache = new Geocache
                         {
                             Person = person,
-                            Coordinates = new GeoCoordinate { Latitude = double.Parse(temp[1]), Longitude = double.Parse(temp[2]) },
+                            Coordinates = new GeoCoordinate {
+                                Latitude = double.Parse(temp[1].Replace('.', ',')),
+                                Longitude = double.Parse(temp[2].Replace('.', ',')) },
                             Contents = temp[3],
                             Message = temp[4]
                         };
