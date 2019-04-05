@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Geocaching.Models
 {
-    class Person
+    class Person : ITag
     {
         [Key]
         public int ID { get; set; }

@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Geocaching.Models
 {
-    class Geocache
+    class Geocache : ITag
     {
         [Key]
         public int ID { get; set; }

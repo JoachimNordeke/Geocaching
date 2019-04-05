@@ -41,8 +41,6 @@ namespace Geocaching
         private List<Pushpin> cachePins = new List<Pushpin>();
 
         //To keep track of wich personPin is selected at the moment. Used in OnPersonPinClick and OnCachePinClick.
-        private int ActivePinPersonID = 0;
-
         private Person activePinPerson;
 
         private MapLayer layer;
@@ -141,8 +139,8 @@ namespace Geocaching
                 pin.Opacity = 1;
                 pin.Background = colors["Gray"];
             }
-
-            ActivePinPersonID = 0;
+            
+            activePinPerson = null;
 
             // It is recommended (but optional) to use this method for setting the color and opacity of each pin after every user interaction that might change something.
             // This method should then be called once after every significant action, such as clicking on a pin, clicking on the map, or clicking a context menu option.
@@ -165,7 +163,7 @@ namespace Geocaching
 
         private void OnAddGeocacheClick(object sender, RoutedEventArgs args)
         {
-            if (ActivePinPersonID == 0)
+            if (activePinPerson == null)
             {
                 MessageBox.Show("Select Person First", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
@@ -185,7 +183,6 @@ namespace Geocaching
 
             string contents = dialog.GeocacheContents;
             string message = dialog.GeocacheMessage;
-            activePinPerson = db.Person.First(p => p.ID == ActivePinPersonID);
 
             string tooltip = $"Latitude:\t\t{latestClickLocation.Latitude}\r\nLongitude:\t{latestClickLocation.Longitude}\r\n" +
                     $"Made by:\t{activePinPerson.FirstName + " " + activePinPerson.LastName}\r\n" +
@@ -208,7 +205,7 @@ namespace Geocaching
             db.Geocache.Add(geocache);
             db.SaveChanges();
 
-            pin.Tag = new Dictionary<string, int> { ["PersonID"] = ActivePinPersonID, ["CacheID"] = geocache.ID };
+            pin.Tag = new Dictionary<string, ITag> { ["Person"] = activePinPerson, ["Geocache"] = geocache };
             cachePins.Add(pin);
         }
 
@@ -252,7 +249,7 @@ namespace Geocaching
 
             db.SaveChanges();
             //This catpture the ID set by the DatabBase
-            pin.Tag = person.ID;
+            pin.Tag = person;
 
             activePinPerson = person;
 
@@ -261,22 +258,22 @@ namespace Geocaching
         private void OnPersonPinClick(object sender, MouseButtonEventArgs args)
         {
             var pushpin = sender as Pushpin;
-            ActivePinPersonID = (int)pushpin.Tag;
+            activePinPerson = (Person)pushpin.Tag;
 
             pushpin.Opacity = 1;
 
-            personPins.Where(p => (int)p.Tag != ActivePinPersonID).ToList().ForEach(p => p.Opacity = 0.5);
+            personPins.Where(p => (Person)p.Tag != activePinPerson).ToList().ForEach(p => p.Opacity = 0.5);
 
-            var foundGeocaches =  db.FoundGeocache.Where(f => f.PersonID == ActivePinPersonID).Include(f => f.GeocacheID).Select(f => f.GeocacheID).ToArray();
+            var foundGeocaches =  db.FoundGeocache.Where(f => f.Person == activePinPerson).Include(f => f.Geocache).Select(f => f.Geocache).ToArray();
 
             foreach (var pin in cachePins)
             {
-                int cachePinPersonID = (pin.Tag as Dictionary<string, int>)["PersonID"];
-                int cachePinCacheID = (pin.Tag as Dictionary<string, int>)["CacheID"];
-
-                if (cachePinPersonID == ActivePinPersonID)
+                var cachePinPerson = (Person)(pin.Tag as Dictionary<string, ITag>)["Person"];
+                var cachePinCache = (Geocache)(pin.Tag as Dictionary<string, ITag>)["Geocache"];
+                
+                if (cachePinPerson == activePinPerson)
                     pin.Background = colors["Black"];
-                else if (foundGeocaches.Contains(cachePinCacheID))
+                else if (foundGeocaches.Contains(cachePinCache))
                     pin.Background = colors["Green"];
                 else
                     pin.Background = colors["Red"];
@@ -287,14 +284,15 @@ namespace Geocaching
        
         private void OnCachePinClick(object sender, MouseButtonEventArgs args)
         {
+            if (activePinPerson == null) return;
             var pin = sender as Pushpin;
-            int cachePinCacheID = (pin.Tag as Dictionary<string, int>)["CacheID"];
+            Geocache cachePinCache = (Geocache)(pin.Tag as Dictionary<string, ITag>)["Geocache"];
 
             if (pin.Background == colors["Red"])
             {
                 try
                 {
-                    db.Add(new FoundGeocache { PersonID = ActivePinPersonID, GeocacheID = cachePinCacheID });
+                    db.Add(new FoundGeocache { Person = activePinPerson, Geocache = cachePinCache });
                     db.SaveChanges();
                     pin.Background = colors["Green"];
                 }
@@ -308,7 +306,7 @@ namespace Geocaching
             {
                 try
                 {
-                    db.Remove(db.FoundGeocache.Where(f => f.PersonID == ActivePinPersonID && f.GeocacheID == cachePinCacheID).Single());
+                    db.Remove(db.FoundGeocache.Where(f => f.Person == activePinPerson && f.Geocache == cachePinCache).Single());
                     db.SaveChanges();
                     pin.Background = colors["Red"];
                 }
@@ -317,8 +315,8 @@ namespace Geocaching
                     MessageBox.Show("Something went wrong when updating the database.\r\n\r\n" +
                         e.Message, "Error");
                 }
-
             }
+
             // To prevent the calling of OnMapLeftClick.
             args.Handled = true;
         }
@@ -423,7 +421,7 @@ namespace Geocaching
                 p.Value.ToList().ForEach(async CacheID => await db.AddAsync(new FoundGeocache { Person = p.Key, Geocache = GeocacheIdFromFile[CacheID] }));
             }
 
-            try { db.SaveChanges(); UpdateMap(); }
+            try { db.SaveChanges(); OnReloadFromDatabaseClick(sender, args); UpdateMap(); }
             catch { MessageBox.Show("Something went wrong when loading the file.", "Error"); }
         }
 
@@ -478,7 +476,7 @@ namespace Geocaching
                     $"Name:\t\t{p.FirstName + " " + p.LastName}\r\nStreet address:\t{p.StreetName + " " + p.StreetNumber}";
 
                 var pPin = AddPin(p.Coordinates, pTooltip, Colors.Blue);
-                pPin.Tag = p.ID;
+                pPin.Tag = p;
                 pPin.MouseLeftButtonDown += OnPersonPinClick;
                 personPins.Add(pPin);
 
@@ -489,7 +487,7 @@ namespace Geocaching
                     $"Contents:\t{g.Contents}\r\nMessage:\t{g.Message}";
 
                     var gPin = AddPin(g.Coordinates, gTooltip, Colors.Gray);
-                    gPin.Tag = new Dictionary<string, int> { ["PersonID"] = p.ID, ["CacheID"] = g.ID };
+                    gPin.Tag = new Dictionary<string, ITag> { ["Person"] = p, ["Geocache"] = g };
                     gPin.MouseLeftButtonDown += OnCachePinClick;
                     cachePins.Add(gPin);
                 }
