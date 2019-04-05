@@ -37,6 +37,7 @@ namespace Geocaching
 
         private AppDbContext db = new AppDbContext();
 
+        // Easier access to all Pins
         private List<Pushpin> personPins = new List<Pushpin>();
         private List<Pushpin> cachePins = new List<Pushpin>();
 
@@ -46,7 +47,7 @@ namespace Geocaching
         private MapLayer layer;
 
         // Contains the location of the latest click on the map.
-        // The Location object in turn contains information like longitude and latitude.
+        // The GeoCoordinate object in turn contains information like longitude and latitude.
         private GeoCoordinate latestClickLocation;
 
         private Location gothenburg = new Location(57.719021, 11.991202);
