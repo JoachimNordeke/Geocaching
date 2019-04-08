@@ -118,15 +118,15 @@ namespace Geocaching
 
             var addPersonMenuItem = new MenuItem { Header = "Add Person" };
             map.ContextMenu.Items.Add(addPersonMenuItem);
-            addPersonMenuItem.Click += OnAddPersonClick;
+            addPersonMenuItem.Click += OnAddPersonClickAsync;
 
             var addGeocacheMenuItem = new MenuItem { Header = "Add Geocache" };
             map.ContextMenu.Items.Add(addGeocacheMenuItem);
-            addGeocacheMenuItem.Click += OnAddGeocacheClick;
+            addGeocacheMenuItem.Click += OnAddGeocacheClickAsync;
 
             var reloadFromDatabaseItem = new MenuItem { Header = "Reload from database" };
             map.ContextMenu.Items.Add(reloadFromDatabaseItem);
-            reloadFromDatabaseItem.Click += OnReloadFromDatabaseClick;
+            reloadFromDatabaseItem.Click += OnReloadFromDatabaseClickAsync;
         }
 
         private void UpdateMap()
@@ -153,7 +153,7 @@ namespace Geocaching
             UpdateMap();
         }
 
-        private async void OnReloadFromDatabaseClick(object sender, RoutedEventArgs args)
+        private async void OnReloadFromDatabaseClickAsync(object sender, RoutedEventArgs args)
         {
             layer.Children.Clear();
             personPins.Clear();
@@ -162,7 +162,7 @@ namespace Geocaching
             await LoadFromDatabaseAsync();
         }
 
-        private void OnAddGeocacheClick(object sender, RoutedEventArgs args)
+        private async void OnAddGeocacheClickAsync(object sender, RoutedEventArgs args)
         {
             if (activePinPerson == null)
             {
@@ -180,8 +180,6 @@ namespace Geocaching
                 return;
             }
 
-
-
             string contents = dialog.GeocacheContents;
             string message = dialog.GeocacheMessage;
 
@@ -191,7 +189,7 @@ namespace Geocaching
 
 
             // Add geocache to map and database here.
-            var pin = AddPin(latestClickLocation, tooltip, Colors.Black);
+            Pushpin pin = AddPin(latestClickLocation, tooltip, Colors.Black);
 
             pin.MouseLeftButtonDown += OnCachePinClick;
 
@@ -204,13 +202,13 @@ namespace Geocaching
                 Person = activePinPerson
             };
             db.Geocache.Add(geocache);
-            db.SaveChanges();
+            await db.SaveChangesAsync();
 
             pin.Tag = new Dictionary<string, ITag> { ["Person"] = activePinPerson, ["Geocache"] = geocache };
             cachePins.Add(pin);
         }
 
-        private void OnAddPersonClick(object sender, RoutedEventArgs args)
+        private async void OnAddPersonClickAsync(object sender, RoutedEventArgs args)
         {
             var dialog = new PersonDialog
             {
@@ -229,8 +227,8 @@ namespace Geocaching
 
             string tooltip = $"Latitude:\t\t{latestClickLocation.Latitude}\r\nLongitude:\t{latestClickLocation.Longitude}\r\n" +
                    $"Name:\t\t{dialog.PersonFirstName + " " + dialog.PersonLastName}\r\nStreet address:\t{streetName + " " + streetNumber}";
-            // Add person to map and database here.
-            var pin = AddPin(latestClickLocation, tooltip, Colors.Blue);
+
+            Pushpin pin = AddPin(latestClickLocation, tooltip, Colors.Blue);
 
             pin.MouseLeftButtonDown += OnPersonPinClick;
             personPins.Add(pin);
@@ -247,13 +245,10 @@ namespace Geocaching
             };
 
             db.Add(person);
+            await db.SaveChangesAsync();
 
-            db.SaveChanges();
-            //This catpture the ID set by the DatabBase
             pin.Tag = person;
-
             activePinPerson = person;
-
         }
 
         private void OnPersonPinClick(object sender, MouseButtonEventArgs args)
@@ -264,14 +259,15 @@ namespace Geocaching
             pushpin.Opacity = 1;
 
             personPins.Where(p => (Person)p.Tag != activePinPerson).ToList().ForEach(p => p.Opacity = 0.5);
-
-            var foundGeocaches =  db.FoundGeocache.Where(f => f.Person == activePinPerson).Include(f => f.Geocache).Select(f => f.Geocache).ToArray();
+            
+            Geocache[] foundGeocaches = db.FoundGeocache.Where(f => f.Person == activePinPerson).Include(f => f.Geocache).Select(f => f.Geocache).ToArray();
+            
 
             foreach (var pin in cachePins)
             {
                 var cachePinPerson = (Person)(pin.Tag as Dictionary<string, ITag>)["Person"];
                 var cachePinCache = (Geocache)(pin.Tag as Dictionary<string, ITag>)["Geocache"];
-                
+
                 if (cachePinPerson == activePinPerson)
                     pin.Background = colors["Black"];
                 else if (foundGeocaches.Contains(cachePinCache))
@@ -341,7 +337,7 @@ namespace Geocaching
             return pin;
         }
 
-        private async void OnLoadFromFileClick(object sender, RoutedEventArgs args)
+        private async void OnLoadFromFileClickAsync(object sender, RoutedEventArgs args)
         {
             var dialog = new Microsoft.Win32.OpenFileDialog
             {
@@ -400,9 +396,11 @@ namespace Geocaching
                         geocache = new Geocache
                         {
                             Person = person,
-                            Coordinates = new GeoCoordinate {
+                            Coordinates = new GeoCoordinate
+                            {
                                 Latitude = double.Parse(temp[1].Replace('.', ',')),
-                                Longitude = double.Parse(temp[2].Replace('.', ',')) },
+                                Longitude = double.Parse(temp[2].Replace('.', ','))
+                            },
                             Contents = temp[3],
                             Message = temp[4]
                         };
@@ -411,7 +409,9 @@ namespace Geocaching
                     }
                     else
                     {
-                        PersonFoundGeocaches.Add(person, line.Substring(7).Split(',').Select(l => int.Parse(l.Trim())).ToArray());
+                        if (line.Count() > 7)
+                            PersonFoundGeocaches.Add(person, line.Substring(7).Split(',').Select(l => int.Parse(l.Trim())).ToArray());
+                        
                         AddNewPerson = true;
                     }
                 }
@@ -422,11 +422,19 @@ namespace Geocaching
                 p.Value.ToList().ForEach(async CacheID => await db.AddAsync(new FoundGeocache { Person = p.Key, Geocache = GeocacheIdFromFile[CacheID] }));
             }
 
-            try { db.SaveChanges(); OnReloadFromDatabaseClick(sender, args); UpdateMap(); }
-            catch { MessageBox.Show("Something went wrong when loading the file.", "Error"); }
+            try
+            {
+                await db.SaveChangesAsync();
+                OnReloadFromDatabaseClickAsync(sender, args);
+                UpdateMap();
+            }
+            catch(Exception e)
+            {
+                MessageBox.Show($"Something went wrong when loading the file.\r\n{e}", "Error");
+            }
         }
 
-        private async void OnSaveToFileClick(object sender, RoutedEventArgs args)
+        private async void OnSaveToFileClickAsync(object sender, RoutedEventArgs args)
         {
             var dialog = new Microsoft.Win32.SaveFileDialog
             {
@@ -463,10 +471,9 @@ namespace Geocaching
             }
 
             await Task.Run(() =>
-             {
+            {
                  File.WriteAllLines(path, lines);
-             });
-
+            });
         }
 
         private async Task LoadFromDatabaseAsync()
