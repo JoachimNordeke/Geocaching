@@ -111,7 +111,7 @@ namespace Geocaching
 
             MouseRightButtonUp += (sender, e) =>
             {
-                var point = e.GetPosition(this);
+                Point point = e.GetPosition(this);
                 latestClickLocation = ConvertPointToGeoCoordinate(point);
             };
 
@@ -143,9 +143,6 @@ namespace Geocaching
             }
             
             activePinPerson = null;
-
-            // It is recommended (but optional) to use this method for setting the color and opacity of each pin after every user interaction that might change something.
-            // This method should then be called once after every significant action, such as clicking on a pin, clicking on the map, or clicking a context menu option.
         }
 
         private void OnMapLeftClick()
@@ -202,8 +199,6 @@ namespace Geocaching
             };
 
             await _db.AddGeocacheAsync(geocache, activePinPerson.ID);
-
-            //await _db.AddGeocacheAsync(geocache);
 
             pin.Tag = new Dictionary<string, ITag> { ["Person"] = activePinPerson, ["Geocache"] = geocache };
             cachePins.Add(pin);
@@ -263,7 +258,7 @@ namespace Geocaching
             }
         }
 
-        private void OnPersonPinClick(object sender, MouseButtonEventArgs args)
+        private async void OnPersonPinClick(object sender, MouseButtonEventArgs args)
         {
             var pushpin = sender as Pushpin;
             activePinPerson = (Person)pushpin.Tag;
@@ -272,8 +267,9 @@ namespace Geocaching
 
             personPins.Where(p => (Person)p.Tag != activePinPerson).ToList().ForEach(p => p.Opacity = 0.5);
 
-            int[] foundGeocaches = _db.GetPersonFoundGeocaches(activePinPerson);
+            args.Handled = true;
             
+            int[] foundGeocaches = await _db.GetPersonFoundGeocachesAsync(activePinPerson);
 
             foreach (var pin in cachePins)
             {
@@ -287,21 +283,22 @@ namespace Geocaching
                 else
                     pin.Background = colors["Red"];
             }
-
-            args.Handled = true;
         }
        
-        private void OnCachePinClick(object sender, MouseButtonEventArgs args)
+        private async void OnCachePinClick(object sender, MouseButtonEventArgs args)
         {
             if (activePinPerson == null) return;
             var pin = sender as Pushpin;
             Geocache cachePinCache = (Geocache)(pin.Tag as Dictionary<string, ITag>)["Geocache"];
+            
+            // To prevent the calling of OnMapLeftClick.
+            args.Handled = true;
 
             if (pin.Background == colors["Red"])
             {
                 try
                 {
-                    _db.AddFoundGeocache(new FoundGeocache { PersonID = activePinPerson.ID, GeocacheID = cachePinCache.ID });
+                    await _db.AddFoundGeocacheAsync(new FoundGeocache { PersonID = activePinPerson.ID, GeocacheID = cachePinCache.ID });
                     pin.Background = colors["Green"];
                 }
                 catch (Exception e)
@@ -314,7 +311,7 @@ namespace Geocaching
             {
                 try
                 {
-                    _db.RemoveFoundGeocache(activePinPerson, cachePinCache);
+                    await _db.RemoveFoundGeocacheAsync(activePinPerson, cachePinCache);
                     pin.Background = colors["Red"];
                 }
                 catch (Exception e)
@@ -323,9 +320,6 @@ namespace Geocaching
                         e.Message, "Error");
                 }
             }
-
-            // To prevent the calling of OnMapLeftClick.
-            args.Handled = true;
         }
 
         private GeoCoordinate ConvertPointToGeoCoordinate(Point point)

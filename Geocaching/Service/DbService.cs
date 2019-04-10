@@ -13,14 +13,6 @@ namespace Geocaching.Service
 {
     class DbService
     {
-        public Person GetPerson(int id)
-        {
-            using (var db = new AppDbContext())
-            {
-                return db.Person.First(p => p.ID == id);
-            }
-        }
-
         public async Task<List<Person>> GetPersonsWithGeocachesAsync()
         {
             using (var db = new AppDbContext())
@@ -48,29 +40,32 @@ namespace Geocaching.Service
             }
         }
 
-        public int[] GetPersonFoundGeocaches(Person person)
+        public async Task<int[]> GetPersonFoundGeocachesAsync(Person person)
         {
             using (var db = new AppDbContext())
             {
-                return db.FoundGeocache.Where(f => f.Person == person).Include(f => f.Geocache).Select(f => f.Geocache.ID).ToArray();
+                return await db.FoundGeocache.Where(f => f.Person == person).Include(f => f.Geocache).Select(f => f.Geocache.ID).ToArrayAsync();
             }
         }
 
-        public void AddFoundGeocache(FoundGeocache foundGeocache)
+        public async Task AddFoundGeocacheAsync(FoundGeocache foundGeocache)
         {
             using (var db = new AppDbContext())
             {
-                db.Add(foundGeocache);
-                db.SaveChanges();
+                await db.AddAsync(foundGeocache);
+                await db.SaveChangesAsync();
             }
         }
 
-        public void RemoveFoundGeocache(Person person, Geocache geocache)
+        public async Task RemoveFoundGeocacheAsync(Person person, Geocache geocache)
         {
             using (var db = new AppDbContext())
             {
-                db.Remove(db.FoundGeocache.Where(f => f.Person == person && f.Geocache == geocache).Single());
-                db.SaveChanges();
+                await Task.WhenAll(Task.Run(() =>
+                {
+                    db.Remove(db.FoundGeocache.Where(f => f.Person == person && f.Geocache == geocache).Single());
+                }));
+                await db.SaveChangesAsync();
             }
         }
 
