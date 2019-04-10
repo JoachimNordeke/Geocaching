@@ -69,7 +69,7 @@ namespace Geocaching.Service
             }
         }
 
-        public async Task ClearDatabase()
+        public async Task ClearDatabaseAsync()
         {
             using (var db = new AppDbContext())
             {
@@ -92,7 +92,7 @@ namespace Geocaching.Service
                     return File.ReadLines(path).ToArray();
                 });
 
-                await ClearDatabase();
+                await ClearDatabaseAsync();
 
                 bool AddNewPerson = true;
                 Person person = null; // Set to null to be usable in the 'else if' statement below.
