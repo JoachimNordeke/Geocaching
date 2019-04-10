@@ -217,6 +217,12 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Data\Migrations\20190409101427_Init.cs" />
+    <Compile Include="Data\Migrations\20190409101427_Init.designer.cs">
+      <DependentUpon>20190409101427_Init.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Data\Migrations\AppDbContextModelSnapshot.cs" />
+    <Compile Include="Service\DbService.cs" />
     <Page Include="GeocacheDialog.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
@@ -230,11 +236,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Data\AppDbContext.cs" />
-    <Compile Include="Data\Migrations\20190319092036_First.cs" />
-    <Compile Include="Data\Migrations\20190319092036_First.designer.cs">
-      <DependentUpon>20190319092036_First.cs</DependentUpon>
-    </Compile>
-    <Compile Include="Data\Migrations\AppDbContextModelSnapshot.cs" />
     <Compile Include="GeocacheDialog.xaml.cs">
       <DependentUpon>GeocacheDialog.xaml</DependentUpon>
     </Compile>
@@ -248,10 +249,10 @@
     </Page>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Models\FoundGeocache.cs" />
-    <Compile Include="Models\Geocache.cs" />
-    <Compile Include="Models\ITag.cs" />
-    <Compile Include="Models\Person.cs" />
+    <Compile Include="Data\Entities\FoundGeocache.cs" />
+    <Compile Include="Data\Entities\Geocache.cs" />
+    <Compile Include="Data\Entities\ITag.cs" />
+    <Compile Include="Data\Entities\Person.cs" />
     <Compile Include="PersonDialog.xaml.cs">
       <DependentUpon>PersonDialog.xaml</DependentUpon>
     </Compile>
@@ -287,6 +288,7 @@
   <ItemGroup>
     <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>

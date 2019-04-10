@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using System.Device.Location;
 using Microsoft.EntityFrameworkCore;
 
-namespace Geocaching.Models
+namespace Geocaching.Data.Enitites
 {
     class Person : ITag
     {
