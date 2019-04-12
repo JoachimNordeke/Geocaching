@@ -1,12 +1,10 @@
-﻿using Geocaching.Data;
-using Geocaching.Data.Enitites;
+﻿using Geocaching.Data.Enitites;
 using Geocaching.Service;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Maps.MapControl.WPF;
 using System;
 using System.Collections.Generic;
 using System.Device.Location;
-using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
@@ -71,7 +69,14 @@ namespace Geocaching
 
             CreateMap();
 
-            await LoadFromDatabaseAsync();
+            try
+            {
+                await LoadFromDatabaseAsync();
+            }
+            catch
+            {
+                MessageBox.Show("Sorry! Database Connection Error");
+            }
         }
 
         private void CreateMap()
@@ -141,7 +146,7 @@ namespace Geocaching
                 pin.Opacity = 1;
                 pin.Background = colors["Gray"];
             }
-            
+
             activePinPerson = null;
         }
 
@@ -190,7 +195,7 @@ namespace Geocaching
             Pushpin pin = AddPin(latestClickLocation, tooltip, Colors.Black);
 
             pin.MouseLeftButtonDown += OnCachePinClick;
-            
+
             var geocache = new Geocache()
             {
                 Contents = contents,
@@ -268,7 +273,7 @@ namespace Geocaching
             personPins.Where(p => (Person)p.Tag != activePinPerson).ToList().ForEach(p => p.Opacity = 0.5);
 
             args.Handled = true;
-            
+
             int[] foundGeocaches = await _db.GetPersonFoundGeocachesAsync(activePinPerson);
 
             foreach (var pin in cachePins)
@@ -284,13 +289,13 @@ namespace Geocaching
                     pin.Background = colors["Red"];
             }
         }
-       
+
         private async void OnCachePinClick(object sender, MouseButtonEventArgs args)
         {
             if (activePinPerson == null) return;
             var pin = sender as Pushpin;
             Geocache cachePinCache = (Geocache)(pin.Tag as Dictionary<string, ITag>)["Geocache"];
-            
+
             // To prevent the calling of OnMapLeftClick.
             args.Handled = true;
 
