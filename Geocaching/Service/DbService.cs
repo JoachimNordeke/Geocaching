@@ -85,6 +85,8 @@ namespace Geocaching.Service
 
         public async Task ReadFromFileToDatabaseAsync(string path)
         {
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+
             using (var db = new AppDbContext())
             {
                 string[] lines = await Task.Run(() =>
@@ -117,8 +119,8 @@ namespace Geocaching.Service
                                 StreetNumber = byte.Parse(temp[5]),
                                 Coordinates = new GeoCoordinate
                                 {
-                                    Latitude = double.Parse(temp[6].Replace('.', ',')),
-                                    Longitude = double.Parse(temp[7].Replace('.', ','))
+                                    Latitude = double.Parse(temp[6]),
+                                    Longitude = double.Parse(temp[7])
                                 }
                             };
 
@@ -133,8 +135,8 @@ namespace Geocaching.Service
                                 Person = person,
                                 Coordinates = new GeoCoordinate
                                 {
-                                    Latitude = double.Parse(temp[1].Replace('.', ',')),
-                                    Longitude = double.Parse(temp[2].Replace('.', ','))
+                                    Latitude = double.Parse(temp[1]),
+                                    Longitude = double.Parse(temp[2])
                                 },
                                 Contents = temp[3],
                                 Message = temp[4]
@@ -163,6 +165,8 @@ namespace Geocaching.Service
 
         public async Task SaveToFileFromDatabaseAsync(string path)
         {
+            System.Globalization.CultureInfo.CurrentCulture = System.Globalization.CultureInfo.InvariantCulture;
+
             using (var db = new AppDbContext())
             {
                 var lines = new List<string>();
